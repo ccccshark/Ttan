@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Ttan</string>
+    <string name="title_activity_main">Ttan</string>
+    <string name="package_name">com.mineradio.saltplayer</string>
+    <string name="custom_url_scheme">com.mineradio.saltplayer</string>
+</resources>
