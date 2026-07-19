@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 夜间模式：背景深空黑，与 Capacitor / Web 端一致 -->
+    <color name="background">#05060F</color>
+    <color name="colorPrimaryDark">#05060F</color>
+</resources>

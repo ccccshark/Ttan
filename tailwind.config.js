@@ -23,14 +23,14 @@ export default {
           800: "#9B3210",
           900: "#7D2C12",
         },
-        // 中性背景色
+        // 中性背景色（深色统一为 #05060f 深空黑）
         surface: {
           light: "#FFFFFF",
           subtle: "#F5F5F7",
           muted: "#EBEBEF",
-          dark: "#0A0A0A",
-          card: "#161617",
-          elevated: "#1F1F22",
+          dark: "#05060F",
+          card: "#10121A",
+          elevated: "#1A1D27",
         },
         ink: {
           DEFAULT: "#1C1C1E",

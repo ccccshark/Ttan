@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { Theme } from "@/types";
 import { getPreferences, savePreferences } from "@/utils/db";
+import { Capacitor } from "@capacitor/core";
+import { StatusBar, Style } from "@capacitor/status-bar";
 
 interface ThemeState {
   theme: Theme;
@@ -9,12 +11,36 @@ interface ThemeState {
   initTheme: () => Promise<void>;
 }
 
+// 深色背景统一使用 #05060f（与 Capacitor / Android 启动色一致）
+const DARK_BG = "#05060f";
+const LIGHT_BG = "#f5f5f7";
+
+async function syncStatusBar(theme: Theme) {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    // Capacitor 命名反直觉：
+    //   Style.Dark  = 深色图标（用于浅色背景）
+    //   Style.Light = 浅色图标（用于深色背景）
+    await StatusBar.setStyle({
+      style: theme === "dark" ? Style.Light : Style.Dark,
+    });
+    await StatusBar.setBackgroundColor({
+      color: theme === "dark" ? DARK_BG : LIGHT_BG,
+    });
+  } catch {
+    // 非原生平台或权限不足，忽略
+  }
+}
+
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
   root.classList.remove("light", "dark");
   root.classList.add(theme);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", theme === "dark" ? "#0A0A0A" : "#FF6B35");
+  if (meta)
+    meta.setAttribute("content", theme === "dark" ? DARK_BG : LIGHT_BG);
+  // 同步状态栏（异步，不阻塞 UI）
+  void syncStatusBar(theme);
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({

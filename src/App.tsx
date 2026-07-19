@@ -22,15 +22,29 @@ function AnimatedRoutes() {
   // 播放页不显示底部 mini player（自身已是全屏播放视图）
   const isNowPlaying = location.pathname === "/playing";
 
+  // 路由切换动画策略：进入播放页用上滑展开，离开用下滑收起，其他路由淡入淡出
+  const isEnteringPlaying = location.pathname === "/playing";
+
   return (
     <>
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          initial={
+            isEnteringPlaying
+              ? { opacity: 0, y: "100%" }
+              : { opacity: 0 }
+          }
+          animate={{ opacity: 1, y: 0 }}
+          exit={
+            isEnteringPlaying
+              ? { opacity: 0, y: "100%" }
+              : { opacity: 0 }
+          }
+          transition={{
+            duration: isEnteringPlaying ? 0.38 : 0.22,
+            ease: [0.32, 0.72, 0, 1],
+          }}
         >
           <Routes location={location}>
             <Route path="/" element={<Home />} />

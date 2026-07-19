@@ -32,7 +32,7 @@ body {
 }
 
 .dark body {
-  background-color: #0a0a0a;
+  background-color: #05060f;
   color: #ffffff;
 }
 
@@ -69,10 +69,40 @@ body {
   background-color: rgba(255, 255, 255, 0.72);
 }
 .dark .glass-light {
-  background-color: rgba(20, 20, 22, 0.72);
+  background-color: rgba(16, 18, 26, 0.72);
 }
 .glass-dark {
   background-color: rgba(10, 10, 10, 0.72);
+}
+
+/* 液态玻璃（Liquid Glass，Android 13+ 风格）*/
+.liquid-glass {
+  background-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.1);
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* 渐变模糊标题栏（顶部到底部线性渐变）*/
+.fade-blur {
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
+/* 浮光动画（用于首页 hero 装饰）*/
+@keyframes flow {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.5; }
+  50% { transform: translate3d(20px, -10px, 0) scale(1.08); opacity: 0.8; }
+}
+.animate-flow {
+  animation: flow 12s ease-in-out infinite;
+}
+@keyframes flow-slow {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.4; }
+  50% { transform: translate3d(-30px, 15px, 0) scale(1.12); opacity: 0.7; }
+}
+.animate-flow-slow {
+  animation: flow-slow 18s ease-in-out infinite;
 }
 
 /* 文本截断 */
@@ -175,4 +205,26 @@ input[type="range"].slider::-moz-range-thumb {
 }
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* 大标题专用：渐变文字 */
+.text-gradient-accent {
+  background: linear-gradient(135deg, #FF6B35 0%, #FF9F7A 50%, #FFC5AB 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* 歌词当前行辉光 */
+.lyric-glow {
+  text-shadow:
+    0 0 12px rgba(180, 210, 255, 0.55),
+    0 0 24px rgba(120, 160, 255, 0.3);
+}
+
+/* 列表项进入动画：交错延迟 */
+@keyframes list-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }

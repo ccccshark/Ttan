@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type PanInfo } from "framer-motion";
 import {
   ChevronDown,
   Disc3,
@@ -18,6 +18,7 @@ import {
 import { usePlayerStore } from "@/store/playerStore";
 import { useAudioAnalyser } from "@/hooks/useAudioAnalyser";
 import ParticleField from "@/components/ParticleField";
+import FlowingLight from "@/components/FlowingLight";
 import LyricsStage from "@/components/LyricsStage";
 import ProgressBar from "@/components/ProgressBar";
 import IconButton from "@/components/IconButton";
@@ -26,12 +27,12 @@ import type { PlayMode } from "@/types";
 import { formatTime } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
-// Mineradio 风格播放页
-// - 全屏深空粒子背景，跟随音乐节奏律动
-// - 中央歌词舞台（电影字幕式）
-// - 顶部最小化导航与歌曲信息
-// - 底部专辑封面 + 播放控制
-// - 右下角低调播放状态指示
+// Ttan 播放页：
+// - 三层视觉：FlowingLight 动态流光（SaltPlayer 风）+ ParticleField 星河（Mineradio 风）+ 暗色渐变
+// - 双面分屏：左滑看封面、右滑看歌词（参考 SaltPlayer）
+// - 横向滑动手势切换主次视图
+// - 底部封面+控制栏，封面节拍脉动
+// - 右下角低调 Live/Paused 指示
 
 type View = "stage" | "cover";
 
@@ -51,24 +52,41 @@ export default function NowPlaying() {
   const playAt = usePlayerStore((s) => s.playAt);
   const _onRequestSeek = usePlayerStore((s) => s._onRequestSeek);
 
-  // 仅在播放时启用频谱分析（暂停时停用节省性能）
   const analysis = useAudioAnalyser(isPlaying && !!currentSong);
 
-  const [view, setView] = useState<View>("stage");
+  const [view, setView] = useState<View>("cover");
   const [showQueue, setShowQueue] = useState(false);
+  const [showLyricsHint, setShowLyricsHint] = useState(true);
+
+  // 横向滑动手势：左滑看歌词，右滑看封面
+  const handleDragEnd = (_e: unknown, info: PanInfo) => {
+    const threshold = 60;
+    if (info.offset.x < -threshold && view === "cover") {
+      setView("stage");
+      setShowLyricsHint(false);
+    } else if (info.offset.x > threshold && view === "stage") {
+      setView("cover");
+    }
+  };
 
   if (!currentSong) {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center gap-4 bg-[#05060f] px-6 text-center text-white">
+        <FlowingLight isPlaying={false} bass={0} className="absolute inset-0" />
         <ParticleField
           analysis={{ level: 0, bass: 0, mid: 0, treble: 0, beat: false }}
           isPlaying={false}
-          className="absolute inset-0"
+          className="absolute inset-0 opacity-60"
         />
         <div className="relative z-10 flex flex-col items-center gap-4">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/10 backdrop-blur-md">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 18 }}
+            className="flex h-20 w-20 items-center justify-center rounded-full bg-white/10 backdrop-blur-md ring-1 ring-white/15"
+          >
             <Play className="h-9 w-9 text-white" />
-          </div>
+          </motion.div>
           <div>
             <h2 className="text-base font-semibold">银河静默中</h2>
             <p className="mt-1 text-sm text-white/60">
@@ -99,15 +117,23 @@ export default function NowPlaying() {
   };
 
   const hasLyrics = !!currentSong.lyrics;
+  // 无歌词时锁定在 cover 视图
+  const effectiveView = hasLyrics ? view : "cover";
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-white">
-      {/* 粒子背景 */}
-      <div className="absolute inset-0 -z-10">
+      {/* 第一层：动态流光（SaltPlayer 风格，从封面取色）*/}
+      <FlowingLight
+        coverUrl={currentSong.coverUrl}
+        isPlaying={isPlaying}
+        bass={analysis.bass}
+        className="absolute inset-0 -z-20"
+      />
+      {/* 第二层：星河粒子（Mineradio 风格）*/}
+      <div className="absolute inset-0 -z-10 opacity-70">
         <ParticleField analysis={analysis} isPlaying={isPlaying} />
       </div>
-
-      {/* 暗色渐变遮罩 - 提升前景文字可读性 */}
+      {/* 第三层：暗色渐变遮罩 */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
 
       {/* 顶部栏 */}
@@ -136,77 +162,49 @@ export default function NowPlaying() {
         </IconButton>
       </div>
 
-      {/* 主区域：歌词舞台 / 封面视图切换 */}
-      <div className="relative mx-auto flex min-h-[calc(100vh-200px)] max-w-[480px] flex-col px-2">
+      {/* 主区域：可横向滑动切换 cover/stage */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.18}
+        onDragEnd={handleDragEnd}
+        className="relative mx-auto flex min-h-[calc(100vh-220px)] max-w-[480px] cursor-grab touch-pan-y px-2 active:cursor-grabbing"
+      >
         <AnimatePresence mode="wait">
-          {view === "stage" ? (
+          {effectiveView === "stage" ? (
             <motion.div
               key="stage"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
+              initial={{ opacity: 0, x: -40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="flex-1"
             >
-              {hasLyrics ? (
-                <LyricsStage
-                  lyrics={currentSong.lyrics}
-                  currentTime={currentTime}
-                  onSeek={(t) => _onRequestSeek?.(t)}
-                />
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-6">
-                  <motion.div
-                    animate={{
-                      scale: isPlaying ? 1 : 0.92,
-                      rotate: isPlaying ? 360 : 0,
-                    }}
-                    transition={{
-                      scale: { type: "spring", stiffness: 200, damping: 20 },
-                      rotate: {
-                        duration: 30,
-                        ease: "linear",
-                        repeat: isPlaying ? Infinity : 0,
-                      },
-                    }}
-                  >
-                    <CoverArt
-                      src={currentSong.coverUrl}
-                      alt={currentSong.title}
-                      size={220}
-                      rounded="full"
-                      className="ring-1 ring-white/15 shadow-cover"
-                    />
-                  </motion.div>
-                  <div className="text-center">
-                    <div className="text-[10px] uppercase tracking-[0.3em] text-white/45">
-                      PURE MUSIC
-                    </div>
-                    <div className="mt-2 text-sm text-white/70">
-                      这首曲目没有内嵌歌词
-                    </div>
-                  </div>
-                </div>
-              )}
+              <LyricsStage
+                lyrics={currentSong.lyrics}
+                currentTime={currentTime}
+                onSeek={(t) => _onRequestSeek?.(t)}
+              />
             </motion.div>
           ) : (
             <motion.div
               key="cover"
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.4 }}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 40 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="flex flex-1 flex-col items-center justify-center"
             >
+              {/* 封面 + 节拍光环 */}
               <motion.div
                 animate={{
-                  scale: isPlaying ? 1 : 0.92,
+                  scale: isPlaying ? 1 : 0.94,
                 }}
                 transition={{ type: "spring", stiffness: 200, damping: 20 }}
                 className="relative"
                 style={{
-                  filter: `drop-shadow(0 12px 40px rgba(80, 130, 255, ${
-                    0.3 + analysis.bass * 0.4
+                  filter: `drop-shadow(0 16px 50px rgba(80, 130, 255, ${
+                    0.35 + analysis.bass * 0.4
                   }))`,
                 }}
               >
@@ -215,23 +213,25 @@ export default function NowPlaying() {
                   alt={currentSong.title}
                   size={280}
                   rounded="lg"
-                  className="ring-1 ring-white/20"
+                  className="ring-1 ring-white/15"
                 />
                 {/* 节拍光环 */}
                 <motion.div
-                  className="absolute -inset-2 -z-10 rounded-3xl"
+                  className="absolute -inset-3 -z-10 rounded-3xl"
                   animate={{
-                    boxShadow: `0 0 ${30 + analysis.bass * 80}px rgba(120, 160, 255, ${
+                    boxShadow: `0 0 ${30 + analysis.bass * 90}px rgba(120, 160, 255, ${
                       0.4 + analysis.bass * 0.5
                     })`,
                   }}
                 />
               </motion.div>
 
+              {/* 歌曲信息 */}
               <motion.div
                 key={currentSong.id + "-info"}
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.4 }}
                 className="mt-8 w-full max-w-[320px] text-center"
               >
                 <h1 className="text-truncate text-2xl font-bold leading-tight">
@@ -247,10 +247,23 @@ export default function NowPlaying() {
                   )}
                 </p>
               </motion.div>
+
+              {/* 滑动提示（首次进入时显示）*/}
+              {showLyricsHint && hasLyrics && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                  className="mt-6 flex items-center gap-2 rounded-full bg-white/8 px-3 py-1.5 text-[11px] text-white/55 backdrop-blur-md"
+                >
+                  <Mic2 className="h-3 w-3" />
+                  左滑查看歌词
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* 底部：歌曲信息 + 进度条 + 控制 */}
       <div className="safe-bottom relative mx-auto w-full max-w-[480px] px-5 pb-3 pt-2">
@@ -258,8 +271,9 @@ export default function NowPlaying() {
         <div className="mb-3 flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setView(view === "stage" ? "cover" : "stage")}
+            onClick={() => hasLyrics && setView(effectiveView === "stage" ? "cover" : "stage")}
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
+            disabled={!hasLyrics}
           >
             <motion.div
               animate={{
@@ -285,30 +299,30 @@ export default function NowPlaying() {
               </div>
             </div>
           </button>
-          <button
-            type="button"
-            onClick={() => setView(view === "stage" ? "cover" : "stage")}
-            disabled={!hasLyrics && view === "stage"}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              view === "cover"
-                ? "bg-white text-[#0a1230]"
-                : "bg-white/12 text-white/80 hover:bg-white/20",
-              !hasLyrics && view === "stage" && "cursor-not-allowed opacity-50"
-            )}
-          >
-            {view === "cover" ? (
-              <>
-                <Mic2 className="h-3.5 w-3.5" />
-                歌词舞台
-              </>
-            ) : (
-              <>
-                <Disc3 className="h-3.5 w-3.5" />
-                封面
-              </>
-            )}
-          </button>
+          {hasLyrics && (
+            <button
+              type="button"
+              onClick={() => setView(effectiveView === "stage" ? "cover" : "stage")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                effectiveView === "cover"
+                  ? "bg-white text-[#05060f]"
+                  : "bg-white/12 text-white/80 hover:bg-white/20"
+              )}
+            >
+              {effectiveView === "cover" ? (
+                <>
+                  <Mic2 className="h-3.5 w-3.5" />
+                  歌词
+                </>
+              ) : (
+                <>
+                  <Disc3 className="h-3.5 w-3.5" />
+                  封面
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* 进度条 */}
@@ -333,14 +347,15 @@ export default function NowPlaying() {
             {playModeIcon[playMode]}
           </IconButton>
 
-          <button
+          <motion.button
             type="button"
             onClick={() => prev()}
             aria-label="上一曲"
-            className="flex h-12 w-12 items-center justify-center rounded-full text-white transition-transform pressable hover:bg-white/10"
+            whileTap={{ scale: 0.85 }}
+            className="flex h-12 w-12 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
           >
             <SkipBack className="h-6 w-6 fill-white" />
-          </button>
+          </motion.button>
 
           <motion.button
             type="button"
@@ -348,29 +363,53 @@ export default function NowPlaying() {
             aria-label={isPlaying ? "暂停" : "播放"}
             whileTap={{ scale: 0.9 }}
             animate={{
-              boxShadow: `0 0 ${20 + analysis.bass * 40}px rgba(180, 210, 255, ${
-                0.4 + analysis.bass * 0.4
+              boxShadow: `0 0 ${20 + analysis.bass * 50}px rgba(180, 210, 255, ${
+                0.45 + analysis.bass * 0.4
               })`,
             }}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#0a1230]"
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#05060f]"
           >
-            {isPlaying ? (
-              <Pause className="h-7 w-7 fill-[#0a1230]" />
-            ) : (
-              <Play className="h-7 w-7 translate-x-0.5 fill-[#0a1230]" />
-            )}
+            <AnimatePresence mode="wait" initial={false}>
+              {isPlaying ? (
+                <motion.span
+                  key="pause"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.5, opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <Pause className="h-7 w-7 fill-[#05060f]" />
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="play"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.5, opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <Play className="h-7 w-7 translate-x-0.5 fill-[#05060f]" />
+                </motion.span>
+              )}
+            </AnimatePresence>
           </motion.button>
 
-          <button
+          <motion.button
             type="button"
             onClick={() => next()}
             aria-label="下一曲"
-            className="flex h-12 w-12 items-center justify-center rounded-full text-white transition-transform pressable hover:bg-white/10"
+            whileTap={{ scale: 0.85 }}
+            className="flex h-12 w-12 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
           >
             <SkipForward className="h-6 w-6 fill-white" />
-          </button>
+          </motion.button>
 
-          <IconButton ariaLabel="更多" className="text-white/75 hover:bg-white/15" size="sm">
+          <IconButton
+            ariaLabel="更多"
+            className="text-white/75 hover:bg-white/15"
+            size="sm"
+          >
             <MoreHorizontal className="h-[18px] w-[18px]" />
           </IconButton>
         </div>
@@ -473,9 +512,7 @@ export default function NowPlaying() {
                       }}
                       className={cn(
                         "flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors",
-                        i === currentIndex
-                          ? "bg-cyan-400/15"
-                          : "hover:bg-white/8"
+                        i === currentIndex ? "bg-cyan-400/15" : "hover:bg-white/8"
                       )}
                     >
                       <div className="w-5 text-center text-xs tabular-nums text-white/45">

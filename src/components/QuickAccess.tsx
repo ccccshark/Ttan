@@ -86,31 +86,45 @@ export default function QuickAccess({ onShuffle }: QuickAccessProps) {
           key={item.key}
           type="button"
           onClick={item.onClick}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.04 * i + 0.1, type: "spring", stiffness: 300, damping: 24 }}
-          whileTap={{ scale: 0.96 }}
+          initial={{ opacity: 0, y: 14, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{
+            delay: 0.05 * i + 0.1,
+            type: "spring",
+            stiffness: 320,
+            damping: 22,
+          }}
+          whileTap={{ scale: 0.95 }}
+          whileHover={{ y: -2 }}
           className={cn(
-            "flex items-center gap-3 rounded-2xl p-3 text-left",
-            "bg-white shadow-card transition-colors hover:bg-white/80",
-            "dark:bg-surface-card dark:hover:bg-surface-elevated"
+            "group relative flex items-center gap-3 overflow-hidden rounded-2xl p-3 text-left",
+            "border border-black/[0.04] bg-white/80 shadow-card backdrop-blur-md",
+            "transition-colors hover:bg-white",
+            "dark:border-white/[0.06] dark:bg-white/[0.06] dark:hover:bg-white/[0.1]"
           )}
         >
+          {/* 卡片右上角微光晕（hover 时显现）*/}
           <div
             className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+              "pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full opacity-0 blur-2xl transition-opacity group-hover:opacity-100",
+              item.bg
+            )}
+          />
+          <div
+            className={cn(
+              "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-sm",
               item.bg,
               item.color
             )}
           >
             {item.icon}
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-truncate text-sm font-semibold text-ink">
+          <div className="relative min-w-0 flex-1">
+            <div className="text-truncate text-sm font-bold text-ink">
               {item.label}
             </div>
             {item.count !== undefined && (
-              <div className="text-xs text-ink-muted">{item.count} 首</div>
+              <div className="mt-0.5 text-xs text-ink-muted">{item.count} 首</div>
             )}
           </div>
         </motion.button>

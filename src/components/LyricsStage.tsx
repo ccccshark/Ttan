@@ -11,10 +11,11 @@ interface LyricsStageProps {
   className?: string;
 }
 
-// Mineradio 风格歌词舞台：
-// 当前行占据画面中央，像电影字幕一样逐句推进
-// 上下相邻行淡化显示，营造电影字幕的纵深感
-// 切换时有平滑的位移过渡
+// 歌词舞台（参考 SaltPlayer 仿 Apple Music 交错滚动）：
+// - 当前行居中，加粗放大 + 辉光
+// - 上下相邻行淡化 + 微缩放
+// - 切换时整列向上平滑位移（每行延迟 60ms）
+// - 顶部底部渐隐遮罩
 
 export default function LyricsStage({
   lyrics,
@@ -52,12 +53,12 @@ export default function LyricsStage({
     return (
       <div
         className={cn(
-          "flex h-full flex-col items-center justify-center gap-3 text-white/50",
+          "flex h-full flex-col items-center justify-center gap-3 text-white/55",
           className
         )}
       >
-        <div className="text-sm tracking-wide">♪ ♪ ♪</div>
-        <div className="text-xs uppercase tracking-[0.3em]">pure music</div>
+        <div className="text-3xl tracking-widest">♪ ♪ ♪</div>
+        <div className="text-[11px] uppercase tracking-[0.4em]">pure music</div>
       </div>
     );
   }
@@ -67,17 +68,17 @@ export default function LyricsStage({
       ref={containerRef}
       className={cn(
         "no-scrollbar h-full overflow-y-auto",
-        "[mask-image:linear-gradient(to_bottom,transparent_0%,black_25%,black_75%,transparent_100%)]",
-        "-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_25%,black_75%,transparent_100%)",
+        "[mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_78%,transparent_100%)]",
+        "[-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_78%,transparent_100%)]",
         className
       )}
     >
-      <div className="flex min-h-full flex-col items-center justify-center px-6 py-[40%]">
+      <div className="flex min-h-full flex-col items-center justify-center px-6 py-[38%]">
         <AnimatePresence mode="popLayout">
           {lines.map((line, i) => {
             const isActive = i === activeIdx;
             const distance = Math.abs(i - activeIdx);
-            const visible = distance <= 2;
+            const visible = distance <= 3;
 
             return (
               <motion.button
@@ -88,16 +89,26 @@ export default function LyricsStage({
                 layout="position"
                 initial={false}
                 animate={{
-                  opacity: isActive ? 1 : visible ? 0.32 - distance * 0.08 : 0,
-                  scale: isActive ? 1 : 0.92,
-                  filter: isActive ? "blur(0px)" : "blur(2px)",
+                  opacity: isActive
+                    ? 1
+                    : visible
+                    ? Math.max(0.18, 0.45 - distance * 0.12)
+                    : 0,
+                  scale: isActive ? 1 : 0.9,
+                  y: isActive ? 0 : 0,
+                  filter: isActive ? "blur(0px)" : "blur(1.5px)",
                 }}
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                transition={{
+                  duration: 0.45,
+                  ease: [0.22, 1, 0.36, 1],
+                  // 交错延迟：行号距离当前行越远，延迟越大（仿 AM）
+                  delay: isActive ? 0 : Math.min(distance * 0.04, 0.18),
+                }}
                 className={cn(
                   "max-w-full cursor-pointer text-center transition-colors",
                   isActive
-                    ? "my-4 text-2xl font-semibold leading-relaxed text-white drop-shadow-[0_2px_12px_rgba(180,210,255,0.45)]"
-                    : "my-2 text-base font-medium text-white/80 hover:text-white"
+                    ? "my-4 text-[26px] font-bold leading-snug text-white lyric-glow"
+                    : "my-2 text-base font-medium text-white/70 hover:text-white/90"
                 )}
               >
                 {line.text || "♪"}
