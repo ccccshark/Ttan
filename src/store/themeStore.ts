@@ -1,26 +1,26 @@
 import { create } from "zustand";
-import type { Theme } from "@/types";
-import { getPreferences, savePreferences } from "@/utils/db";
+import type { Theme, ThemeMode } from "@/types";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 
 interface ThemeState {
+  /** 当前实际生效的主题（light/dark，已解析） */
   theme: Theme;
-  setTheme: (t: Theme) => void;
+  /** 用户选择的主题模式（支持 system） */
+  mode: ThemeMode;
+  setMode: (m: ThemeMode) => void;
   toggleTheme: () => void;
-  initTheme: () => Promise<void>;
+  /** 监听系统主题变化（仅 mode === 'system' 时生效） */
+  bindSystemListener: () => () => void;
+  initTheme: () => void;
 }
 
-// 深色背景统一使用 #05060f（与 Capacitor / Android 启动色一致）
 const DARK_BG = "#05060f";
 const LIGHT_BG = "#f5f5f7";
 
 async function syncStatusBar(theme: Theme) {
   if (!Capacitor.isNativePlatform()) return;
   try {
-    // Capacitor 命名反直觉：
-    //   Style.Dark  = 深色图标（用于浅色背景）
-    //   Style.Light = 浅色图标（用于深色背景）
     await StatusBar.setStyle({
       style: theme === "dark" ? Style.Light : Style.Dark,
     });
@@ -37,53 +37,59 @@ function applyTheme(theme: Theme) {
   root.classList.remove("light", "dark");
   root.classList.add(theme);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta)
-    meta.setAttribute("content", theme === "dark" ? DARK_BG : LIGHT_BG);
-  // 同步状态栏（异步，不阻塞 UI）
+  if (meta) meta.setAttribute("content", theme === "dark" ? DARK_BG : LIGHT_BG);
   void syncStatusBar(theme);
+}
+
+// 根据 mode 解析实际生效主题
+function resolveTheme(mode: ThemeMode): Theme {
+  if (mode === "system") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+  return mode;
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   theme: "light",
-  setTheme: (t) => {
-    applyTheme(t);
-    set({ theme: t });
-    // 持久化到 IndexedDB（异步，不阻塞）
-    void savePreferences({
-      theme: t,
-      volume: 0.8,
-      playMode: "order",
-    }).catch(() => {});
-  },
-  toggleTheme: () => {
-    const next = get().theme === "light" ? "dark" : "light";
-    get().setTheme(next);
-  },
-  initTheme: async () => {
-    // 先用 localStorage 立即响应，避免闪烁
-    const local = localStorage.getItem("theme") as Theme | null;
-    const initial: Theme =
-      local ??
-      (window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light");
-    applyTheme(initial);
-    set({ theme: initial });
+  mode: "system",
 
-    // 再尝试从 IndexedDB 读取完整偏好
-    try {
-      const prefs = await getPreferences();
-      if (prefs?.theme && prefs.theme !== initial) {
-        applyTheme(prefs.theme);
-        set({ theme: prefs.theme });
+  setMode: (m) => {
+    const next = resolveTheme(m);
+    applyTheme(next);
+    set({ mode: m, theme: next });
+    // localStorage 缓存 mode，供启动时立即读取
+    localStorage.setItem("theme-mode", m);
+  },
+
+  toggleTheme: () => {
+    // 快捷切换：在 light/dark 之间翻转，并切到非 system 模式
+    const current = get().theme;
+    const next: Theme = current === "light" ? "dark" : "light";
+    applyTheme(next);
+    set({ theme: next, mode: next });
+    localStorage.setItem("theme-mode", next);
+  },
+
+  bindSystemListener: () => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => {
+      if (get().mode === "system") {
+        const next = resolveTheme("system");
+        applyTheme(next);
+        set({ theme: next });
       }
-    } catch {
-      // 忽略
-    }
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  },
+
+  initTheme: () => {
+    // 从 localStorage 读取 mode（启动时同步，避免闪烁）
+    const storedMode = (localStorage.getItem("theme-mode") as ThemeMode | null) ?? "system";
+    const initial = resolveTheme(storedMode);
+    applyTheme(initial);
+    set({ mode: storedMode, theme: initial });
   },
 }));
-
-// 同步 localStorage，方便下次启动快速读取
-useThemeStore.subscribe((state) => {
-  localStorage.setItem("theme", state.theme);
-});

@@ -10,9 +10,12 @@ import Home from "@/pages/Home";
 import NowPlaying from "@/pages/NowPlaying";
 import Playlists from "@/pages/Playlists";
 import Search from "@/pages/Search";
+import Settings from "@/pages/Settings";
+import About from "@/pages/About";
 import MiniPlayer from "@/components/MiniPlayer";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useThemeStore } from "@/store/themeStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useLibraryStore } from "@/store/libraryStore";
 import { setAudioElement } from "@/utils/audioElement";
 
@@ -51,6 +54,8 @@ function AnimatedRoutes() {
             <Route path="/playing" element={<NowPlaying />} />
             <Route path="/playlists" element={<Playlists />} />
             <Route path="/search" element={<Search />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/about" element={<About />} />
             <Route path="*" element={<Home />} />
           </Routes>
         </motion.div>
@@ -64,6 +69,8 @@ function AnimatedRoutes() {
 export default function App() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const initTheme = useThemeStore((s) => s.initTheme);
+  const bindSystemListener = useThemeStore((s) => s.bindSystemListener);
+  const loadSettings = useSettingsStore((s) => s.loadSettings);
   const loadPlaylists = useLibraryStore((s) => s.loadPlaylists);
   const loadRecents = useLibraryStore((s) => s.loadRecents);
 
@@ -71,10 +78,13 @@ export default function App() {
 
   useEffect(() => {
     setAudioElement(audioRef.current);
-    void initTheme();
+    initTheme();
+    const unbind = bindSystemListener();
+    void loadSettings();
     void loadPlaylists();
     void loadRecents();
-  }, [initTheme, loadPlaylists, loadRecents]);
+    return unbind;
+  }, [initTheme, bindSystemListener, loadSettings, loadPlaylists, loadRecents]);
 
   return (
     <Router>

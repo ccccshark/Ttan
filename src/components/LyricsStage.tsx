@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { LyricLine } from "@/types";
 import { findCurrentLyricIndex, parseLrc } from "@/utils/lyrics";
+import { useSettingsStore } from "@/store/settingsStore";
 import { cn } from "@/lib/utils";
 
 interface LyricsStageProps {
@@ -16,6 +17,31 @@ interface LyricsStageProps {
 // - 上下相邻行淡化 + 微缩放
 // - 切换时整列向上平滑位移（每行延迟 60ms）
 // - 顶部底部渐隐遮罩
+// - 支持设置：字号、行间距、对齐、偏移、翻译、卡拉OK 逐字高亮
+
+// 翻译行：解析 LRC 时把同时间标签的相邻行视为原文 / 译文
+interface ParsedLyric extends LyricLine {
+  translation?: string;
+}
+
+function parseLrcWithTranslation(lrc: string, withTranslation: boolean): ParsedLyric[] {
+  const base = parseLrc(lrc);
+  if (!withTranslation || base.length === 0) return base;
+  // 同时间戳合并：相同时间（±0.05s）的相邻行视为原文+译文
+  const out: ParsedLyric[] = [];
+  for (let i = 0; i < base.length; i++) {
+    const cur = base[i];
+    const nxt = base[i + 1];
+    if (nxt && Math.abs(nxt.time - cur.time) < 0.05 && nxt.text !== cur.text) {
+      // 仅当原文与译文文本显著不同（避免重复时间标签的相同行）
+      out.push({ ...cur, translation: nxt.text });
+      i++; // 跳过译文行
+    } else {
+      out.push(cur);
+    }
+  }
+  return out;
+}
 
 export default function LyricsStage({
   lyrics,
@@ -23,11 +49,28 @@ export default function LyricsStage({
   onSeek,
   className,
 }: LyricsStageProps) {
-  const lines = useMemo<LyricLine[]>(() => parseLrc(lyrics ?? ""), [lyrics]);
-  const activeIdx = useMemo(
-    () => findCurrentLyricIndex(lines, currentTime),
-    [lines, currentTime]
+  const settings = useSettingsStore((s) => s.settings);
+  const {
+    lyricsFontSize,
+    lyricsLineHeight,
+    lyricsAlign,
+    lyricsOffsetMs,
+    lyricsShowTranslation,
+    lyricsKaraokeMode,
+  } = settings;
+
+  const lines = useMemo<ParsedLyric[]>(
+    () => parseLrcWithTranslation(lyrics ?? "", lyricsShowTranslation),
+    [lyrics, lyricsShowTranslation]
   );
+
+  // 应用偏移：offsetMs > 0 让歌词提前，<0 让歌词延后
+  const adjustedTime = currentTime + lyricsOffsetMs / 1000;
+  const activeIdx = useMemo(
+    () => findCurrentLyricIndex(lines, adjustedTime),
+    [lines, adjustedTime]
+  );
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 当前行变化时，平滑滚动使当前行居中
@@ -63,6 +106,26 @@ export default function LyricsStage({
     );
   }
 
+  // 字号派生：当前行 +6，相邻行使用基础字号
+  const baseSize = lyricsFontSize;
+  const activeSize = lyricsFontSize + 6;
+
+  // 对齐 class
+  const alignClass =
+    lyricsAlign === "left"
+      ? "items-start text-left"
+      : "items-center text-center";
+
+  // 当前行在卡拉OK 模式下的进度（0-1）
+  const karaokeProgress = (() => {
+    if (!lyricsKaraokeMode || activeIdx < 0) return 0;
+    const cur = lines[activeIdx];
+    const nxt = lines[activeIdx + 1];
+    const end = nxt ? nxt.time : cur.time + 4;
+    const span = Math.max(0.2, end - cur.time);
+    return Math.max(0, Math.min(1, (adjustedTime - cur.time) / span));
+  })();
+
   return (
     <div
       ref={containerRef}
@@ -73,12 +136,30 @@ export default function LyricsStage({
         className
       )}
     >
-      <div className="flex min-h-full flex-col items-center justify-center px-6 py-[38%]">
+      <div
+        className={cn(
+          "flex min-h-full flex-col px-6 py-[38%]",
+          alignClass
+        )}
+      >
         <AnimatePresence mode="popLayout">
           {lines.map((line, i) => {
             const isActive = i === activeIdx;
             const distance = Math.abs(i - activeIdx);
             const visible = distance <= 3;
+
+            // 卡拉OK 高亮：当前行使用线性渐变 mask 实现逐字 wipe
+            const karaokeStyle: React.CSSProperties =
+              isActive && lyricsKaraokeMode
+                ? {
+                    backgroundImage:
+                      "linear-gradient(90deg, #fff 0%, #fff var(--kp, 0%), rgba(255,255,255,0.35) var(--kp, 0%), rgba(255,255,255,0.35) 100%)",
+                    backgroundClip: "text",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    ["--kp" as never]: `${Math.round(karaokeProgress * 100)}%`,
+                  }
+                : {};
 
             return (
               <motion.button
@@ -105,13 +186,36 @@ export default function LyricsStage({
                   delay: isActive ? 0 : Math.min(distance * 0.04, 0.18),
                 }}
                 className={cn(
-                  "max-w-full cursor-pointer text-center transition-colors",
+                  "max-w-full cursor-pointer transition-colors",
                   isActive
-                    ? "my-4 text-[26px] font-bold leading-snug text-white lyric-glow"
-                    : "my-2 text-base font-medium text-white/70 hover:text-white/90"
+                    ? "my-4 font-bold text-white lyric-glow"
+                    : "my-2 font-medium text-white/70 hover:text-white/90",
+                  lyricsAlign === "left" ? "text-left" : "text-center"
                 )}
+                style={{
+                  fontSize: isActive ? activeSize : baseSize,
+                  lineHeight: lyricsLineHeight,
+                  ...karaokeStyle,
+                }}
               >
-                {line.text || "♪"}
+                <span className="block">{line.text || "♪"}</span>
+                {lyricsShowTranslation && line.translation && (
+                  <span
+                    className={cn(
+                      "mt-1 block font-normal",
+                      isActive ? "text-white/65" : "text-white/35",
+                      lyricsAlign === "left" ? "text-left" : "text-center"
+                    )}
+                    style={{
+                      fontSize: isActive
+                        ? Math.max(12, activeSize - 8)
+                        : Math.max(11, baseSize - 6),
+                      lineHeight: lyricsLineHeight,
+                    }}
+                  >
+                    {line.translation}
+                  </span>
+                )}
               </motion.button>
             );
           })}

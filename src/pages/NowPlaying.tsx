@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, type PanInfo } from "framer-motion";
 import {
@@ -16,6 +16,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { usePlayerStore } from "@/store/playerStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useAudioAnalyser } from "@/hooks/useAudioAnalyser";
 import ParticleField from "@/components/ParticleField";
 import FlowingLight from "@/components/FlowingLight";
@@ -53,6 +54,43 @@ export default function NowPlaying() {
   const _onRequestSeek = usePlayerStore((s) => s._onRequestSeek);
 
   const analysis = useAudioAnalyser(isPlaying && !!currentSong);
+  const settings = useSettingsStore((s) => s.settings);
+
+  // 动态取色：从封面提取主色注入 --accent-color CSS 变量
+  useEffect(() => {
+    if (!settings.dynamicColor || !currentSong?.coverUrl) return;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, 32, 32);
+        const data = ctx.getImageData(0, 0, 32, 32).data;
+        // 取最饱和且不太暗/亮的像素均值
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const cr = data[i], cg = data[i + 1], cb = data[i + 2];
+          const lum = 0.299 * cr + 0.587 * cg + 0.114 * cb;
+          if (lum < 40 || lum > 220) continue;
+          const max = Math.max(cr, cg, cb);
+          const min = Math.min(cr, cg, cb);
+          if (max - min < 25) continue;
+          r += cr; g += cg; b += cb; count++;
+        }
+        if (count > 0) {
+          const color = `rgb(${Math.round(r / count)}, ${Math.round(g / count)}, ${Math.round(b / count)})`;
+          document.documentElement.style.setProperty("--accent-color", color);
+        }
+      } catch {
+        // 跨域或读取失败，忽略
+      }
+    };
+    img.src = currentSong.coverUrl;
+  }, [settings.dynamicColor, currentSong?.coverUrl]);
 
   const [view, setView] = useState<View>("cover");
   const [showQueue, setShowQueue] = useState(false);
@@ -122,18 +160,47 @@ export default function NowPlaying() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-white">
-      {/* 第一层：动态流光（SaltPlayer 风格，从封面取色）*/}
-      <FlowingLight
-        coverUrl={currentSong.coverUrl}
-        isPlaying={isPlaying}
-        bass={analysis.bass}
-        className="absolute inset-0 -z-20"
-      />
-      {/* 第二层：星河粒子（Mineradio 风格）*/}
-      <div className="absolute inset-0 -z-10 opacity-70">
-        <ParticleField analysis={analysis} isPlaying={isPlaying} />
-      </div>
-      {/* 第三层：暗色渐变遮罩 */}
+      {/* 背景层（根据 settings.playbackBackground 渲染）*/}
+      {settings.playbackBackground === "flowLight" && (
+        <FlowingLight
+          coverUrl={currentSong.coverUrl}
+          isPlaying={isPlaying}
+          bass={analysis.bass}
+          intensity={settings.flowLightIntensity}
+          className="absolute inset-0 -z-20"
+        />
+      )}
+      {settings.playbackBackground === "particle" && (
+        <div className="absolute inset-0 -z-20">
+          <FlowingLight
+            coverUrl={currentSong.coverUrl}
+            isPlaying={isPlaying}
+            bass={analysis.bass}
+            intensity={settings.flowLightIntensity * 0.4}
+          />
+          <ParticleField analysis={analysis} isPlaying={isPlaying} />
+        </div>
+      )}
+      {settings.playbackBackground === "blurCover" && currentSong.coverUrl && (
+        <>
+          <div
+            className="absolute inset-0 -z-20 scale-125 bg-cover bg-center opacity-60"
+            style={{
+              backgroundImage: `url(${currentSong.coverUrl})`,
+              filter: "blur(80px) saturate(180%)",
+            }}
+          />
+          <div className="absolute inset-0 -z-20 bg-black/50" />
+        </>
+      )}
+      {settings.playbackBackground === "solid" && (
+        <div className="absolute inset-0 -z-20 bg-[#05060f]" />
+      )}
+      {settings.playbackBackground === "none" && (
+        <div className="absolute inset-0 -z-20 bg-black" />
+      )}
+
+      {/* 暗色渐变遮罩（始终在最上层，提升文字可读性）*/}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
 
       {/* 顶部栏 */}

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ChevronDown, Music4, Play, Shuffle } from "lucide-react";
+import { ChevronDown, Music4, Play, Settings as SettingsIcon, Shuffle } from "lucide-react";
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
 import ImportButton from "@/components/ImportButton";
@@ -15,6 +16,7 @@ import type { Song } from "@/types";
 // - 极简卡片网格（参考 SaltPlayer 极简取向）
 // - 歌曲列表带毛玻璃容器与交错入场动画
 export default function Home() {
+  const navigate = useNavigate();
   const songs = useLibraryStore((s) => s.songs);
   const setQueue = usePlayerStore((s) => s.setQueue);
   const playSong = usePlayerStore((s) => s.playSong);
@@ -81,18 +83,30 @@ export default function Home() {
             initial={{ opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col items-end"
+            className="flex items-center gap-2"
           >
-            <div className="text-2xl font-bold tabular-nums text-ink">
-              {sortedSongs.length}
-              <span className="ml-1 text-xs font-normal text-ink-muted">首</span>
-            </div>
-            {totalMinutes > 0 && (
-              <div className="text-[11px] text-ink-subtle">
-                约 {totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ` : ""}
-                {totalMinutes % 60}min
+            <div className="flex flex-col items-end">
+              <div className="text-2xl font-bold tabular-nums text-ink">
+                {sortedSongs.length}
+                <span className="ml-1 text-xs font-normal text-ink-muted">首</span>
               </div>
-            )}
+              {totalMinutes > 0 && (
+                <div className="text-[11px] text-ink-subtle">
+                  约 {totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ` : ""}
+                  {totalMinutes % 60}min
+                </div>
+              )}
+            </div>
+            <motion.button
+              type="button"
+              onClick={() => navigate("/settings")}
+              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.06 }}
+              aria-label="设置"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/60 text-ink shadow-sm backdrop-blur-md transition-colors hover:bg-white/80 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+            >
+              <SettingsIcon className="h-5 w-5" />
+            </motion.button>
           </motion.div>
         </div>
         <p className="mt-3 text-sm text-ink-muted">

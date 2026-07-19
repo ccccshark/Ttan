@@ -9,15 +9,15 @@ export default {
     },
     extend: {
       colors: {
-        // 椒盐音乐风格：暖橘红强调色
+        // 椒盐音乐风格：暖橘红强调色（DEFAULT 使用 CSS 变量支持动态切换）
         accent: {
-          DEFAULT: "#FF6B35",
+          DEFAULT: "var(--accent-color, #FF6B35)",
           50: "#FFF3EE",
           100: "#FFE2D5",
           200: "#FFC5AB",
           300: "#FF9F7A",
           400: "#FF8355",
-          500: "#FF6B35",
+          500: "var(--accent-color, #FF6B35)",
           600: "#ED4F18",
           700: "#C43D10",
           800: "#9B3210",

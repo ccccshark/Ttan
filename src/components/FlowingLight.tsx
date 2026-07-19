@@ -7,6 +7,8 @@ interface FlowingLightProps {
   isPlaying: boolean;
   /** 音频低频强度 0-1，驱动光球脉动 */
   bass?: number;
+  /** 强度 0-1，控制光球亮度与模糊半径 */
+  intensity?: number;
   className?: string;
 }
 
@@ -80,6 +82,7 @@ export default function FlowingLight({
   coverUrl,
   isPlaying,
   bass = 0,
+  intensity = 0.6,
   className,
 }: FlowingLightProps) {
   const [colors, setColors] = useState<RGB[]>(DEFAULT_COLORS);
@@ -123,6 +126,8 @@ export default function FlowingLight({
   }, [colors]);
 
   const toRgb = (c: RGB, alpha = 1) => `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+  // 强度系数：0 时几乎不可见，1 时全亮
+  const intensityK = Math.max(0, Math.min(1, intensity));
 
   return (
     <div
@@ -162,11 +167,11 @@ export default function FlowingLight({
               borderRadius: "50%",
               background: `radial-gradient(circle, ${toRgb(
                 color,
-                0.55 + bassRef.current * 0.2
-              )} 0%, ${toRgb(color, 0.15)} 40%, transparent 70%)`,
-              filter: `blur(${50 + i * 15}px)`,
+                (0.55 + bassRef.current * 0.2) * intensityK
+              )} 0%, ${toRgb(color, 0.15 * intensityK)} 40%, transparent 70%)`,
+              filter: `blur(${(50 + i * 15) * (1 - intensityK * 0.3)}px)`,
               mixBlendMode: "screen",
-              opacity: 0.85,
+              opacity: 0.85 * intensityK,
               animation: `flow-orb-${i} ${orb.duration}s ease-in-out infinite`,
               animationDelay: `${orb.delay}s`,
             }}
