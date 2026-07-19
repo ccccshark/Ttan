@@ -32,7 +32,7 @@ let dbPromise: Promise<IDBPDatabase<MusicDB>> | null = null;
 
 function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB<MusicDB>("salt-music-db", 3, {
+    dbPromise = openDB<MusicDB>("salt-music-db", 4, {
       upgrade(db, _oldVersion, _newVersion, transaction) {
         if (!db.objectStoreNames.contains("playlists")) {
           db.createObjectStore("playlists", { keyPath: "id" });
@@ -54,7 +54,8 @@ function getDB() {
         if (!db.objectStoreNames.contains("playCounts")) {
           db.createObjectStore("playCounts", { keyPath: "songId" });
         }
-        // 兼容旧版本无返回值的 transaction，不强制 await
+        // v4: library 仓库结构不变，但语义升级——现在实际写入 Song（含 fileBlob/coverBlob）
+        // 这里无需结构变更，仅版本号升级触发 upgrade 钩子，便于后续扩展
         void transaction;
       },
     });
@@ -168,7 +169,7 @@ export async function clearPlayCounts(): Promise<void> {
 export interface BackupData {
   version: number;
   exportedAt: number;
-  // 注意：fileUrl 是 blob URL，重启后失效，备份仅保留元数据
+  // 注意：fileUrl 是 blob URL，重启后失效，备份保留 fileBlob/coverBlob 以便恢复后重建
   songs: Song[];
   playlists: Playlist[];
   recents: RecentPlay[];
@@ -187,14 +188,14 @@ export async function exportBackup(): Promise<BackupData> {
     db.get("preferences", "current"),
     db.getAll("playCounts"),
   ]);
-  // 备份时清除 fileUrl/coverUrl（blob URL 重启失效），仅保留元数据
+  // 备份时清除 blob: URL（重启失效），但保留 fileBlob/coverBlob
   const sanitizedSongs = songs.map((s) => ({
     ...s,
     fileUrl: "",
     coverUrl: "",
   }));
   return {
-    version: 3,
+    version: 4,
     exportedAt: Date.now(),
     songs: sanitizedSongs,
     playlists,
@@ -220,4 +221,32 @@ export async function importBackup(data: BackupData): Promise<void> {
     data.preferences ? tx.objectStore("preferences").put(data.preferences, "current") : Promise.resolve(),
   ]);
   await tx.done;
+}
+
+// ---- 音乐库（library 仓库：Song 含 Blob）----
+export async function getAllSongs(): Promise<Song[]> {
+  const db = await getDB();
+  return db.getAll("library");
+}
+
+export async function saveSong(song: Song): Promise<void> {
+  const db = await getDB();
+  await db.put("library", song);
+}
+
+export async function saveSongs(songs: Song[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("library", "readwrite");
+  await Promise.all(songs.map((s) => tx.objectStore("library").put(s)));
+  await tx.done;
+}
+
+export async function deleteSong(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete("library", id);
+}
+
+export async function clearLibrary(): Promise<void> {
+  const db = await getDB();
+  await db.clear("library");
 }

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { PlayMode, Song } from "@/types";
 import { addRecent, incrementPlayCount } from "@/utils/db";
+import { useSettingsStore } from "@/store/settingsStore";
 
 interface PlayerState {
   // 当前播放
@@ -58,9 +59,12 @@ interface PlayerState {
   }>) => void;
 }
 
-// 记录播放次数（异步、防错）
+// 记录播放次数（异步、防错）。受 playCountEnabled 设置控制
 function trackPlayCount(song: Song) {
+  const { playCountEnabled } = useSettingsStore.getState().settings;
+  // 最近播放记录始终更新（用于"最近播放"列表），不受计数开关影响
   void addRecent(song.id).catch(() => {});
+  if (!playCountEnabled) return;
   void incrementPlayCount(song.id)
     .then((pc) => {
       // 同步更新 library store 中的 playCount

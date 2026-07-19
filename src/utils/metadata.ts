@@ -23,6 +23,7 @@ export function getPlaceholderCover(): string {
 }
 
 // 从 File 解析为 Song 对象
+// fileBlob / coverBlob 保留原始 Blob 引用，便于持久化到 IndexedDB
 export async function fileToSong(file: File): Promise<Song> {
   const fileUrl = URL.createObjectURL(file);
   let title = stripExtension(file.name);
@@ -31,6 +32,14 @@ export async function fileToSong(file: File): Promise<Song> {
   let duration = 0;
   let coverUrl = PLACEHOLDER_COVER;
   let lyrics: string | undefined;
+  let coverBlob: Blob | undefined;
+  let codec: string | undefined;
+  let bitrate: number | undefined;
+  let sampleRate: number | undefined;
+  let bitsPerSample: number | undefined;
+  let channels: number | undefined;
+  let genre: string | undefined;
+  let year: number | undefined;
 
   try {
     const metadata = await parseBlob(file);
@@ -38,12 +47,19 @@ export async function fileToSong(file: File): Promise<Song> {
     if (metadata.common.artist) artist = metadata.common.artist;
     if (metadata.common.album) album = metadata.common.album;
     if (metadata.format.duration) duration = metadata.format.duration;
+    if (metadata.format.codec) codec = metadata.format.codec;
+    if (metadata.format.bitrate) bitrate = Math.round(metadata.format.bitrate / 1000);
+    if (metadata.format.sampleRate) sampleRate = metadata.format.sampleRate;
+    if (metadata.format.bitsPerSample) bitsPerSample = metadata.format.bitsPerSample;
+    if (metadata.format.numberOfChannels) channels = metadata.format.numberOfChannels;
+    if (metadata.common.genre?.[0]) genre = metadata.common.genre[0];
+    if (metadata.common.year) year = metadata.common.year;
 
-    // 提取封面
+    // 提取封面（保留 Blob 引用）
     const picture = metadata.common.picture?.[0];
     if (picture) {
-      const blob = new Blob([picture.data], { type: picture.format });
-      coverUrl = URL.createObjectURL(blob);
+      coverBlob = new Blob([picture.data], { type: picture.format });
+      coverUrl = URL.createObjectURL(coverBlob);
     }
 
     // 提取内嵌歌词（USLT）
@@ -70,6 +86,16 @@ export async function fileToSong(file: File): Promise<Song> {
     fileSize: file.size,
     lyrics,
     addedAt: Date.now(),
+    codec,
+    bitrate,
+    sampleRate,
+    bitsPerSample,
+    channels,
+    genre,
+    year,
+    // 持久化字段：原始 Blob
+    fileBlob: file,
+    coverBlob,
   };
 }
 

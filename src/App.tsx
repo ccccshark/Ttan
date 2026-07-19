@@ -13,7 +13,9 @@ import Search from "@/pages/Search";
 import Settings from "@/pages/Settings";
 import SongDetail from "@/pages/SongDetail";
 import About from "@/pages/About";
+import MyPage from "@/pages/MyPage";
 import MiniPlayer from "@/components/MiniPlayer";
+import BottomNav from "@/components/BottomNav";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useEqualizer } from "@/hooks/useEqualizer";
 import { useMediaSession } from "@/hooks/useMediaSession";
@@ -58,6 +60,7 @@ function AnimatedRoutes() {
             <Route path="/playing" element={<NowPlaying />} />
             <Route path="/playlists" element={<Playlists />} />
             <Route path="/song/:id" element={<SongDetail />} />
+            <Route path="/my" element={<MyPage />} />
             <Route path="/search" element={<Search />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/about" element={<About />} />
@@ -67,6 +70,7 @@ function AnimatedRoutes() {
       </AnimatePresence>
 
       {!isNowPlaying && <MiniPlayer />}
+      {!isNowPlaying && <BottomNav />}
     </>
   );
 }
@@ -76,6 +80,7 @@ export default function App() {
   const initTheme = useThemeStore((s) => s.initTheme);
   const bindSystemListener = useThemeStore((s) => s.bindSystemListener);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const loadLibrary = useLibraryStore((s) => s.loadLibrary);
   const loadPlaylists = useLibraryStore((s) => s.loadPlaylists);
   const loadRecents = useLibraryStore((s) => s.loadRecents);
   const loadPlayCounts = useLibraryStore((s) => s.loadPlayCounts);
@@ -92,11 +97,14 @@ export default function App() {
     initTheme();
     const unbind = bindSystemListener();
     void loadSettings();
-    void loadPlaylists();
-    void loadRecents();
-    void loadPlayCounts();
+    // 关键：先加载音乐库（含 blob URL 重建），再加载依赖歌曲的统计/最近
+    void loadLibrary().then(() => {
+      void loadPlaylists();
+      void loadRecents();
+      void loadPlayCounts();
+    });
     return unbind;
-  }, [initTheme, bindSystemListener, loadSettings, loadPlaylists, loadRecents, loadPlayCounts]);
+  }, [initTheme, bindSystemListener, loadSettings, loadLibrary, loadPlaylists, loadRecents, loadPlayCounts]);
 
   // 输出设备切换：通过 setSinkId 应用到 audio 元素
   useEffect(() => {

@@ -175,10 +175,10 @@ export default function Settings() {
     showToast("已清除播放统计");
   };
 
-  const handleClearLibrary = () => {
+  const handleClearLibrary = async () => {
     if (!confirm("确定清空整个音乐库吗？此操作不可撤销，请先备份！")) return;
     if (!confirm("再次确认：清空后所有歌曲、封面、歌词缓存都会被删除。")) return;
-    clearLibrary();
+    await clearLibrary();
     showToast("已清空音乐库");
   };
 

@@ -1,18 +1,20 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  ChevronDown,
+  ChevronRight,
   Clock,
+  Disc3,
   Flame,
   Heart,
   Music4,
   Play,
-  Settings as SettingsIcon,
+  Plus,
   Shuffle,
 } from "lucide-react";
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import ImportButton from "@/components/ImportButton";
 import SongItem from "@/components/SongItem";
 import SongSheet from "@/components/SongSheet";
@@ -21,11 +23,13 @@ import CoverArt from "@/components/CoverArt";
 import type { Song } from "@/types";
 import { cn } from "@/lib/utils";
 
-// Ttan 首页（简约高级感）：
-// - 极简 hero：单色渐变 + 一行品牌字 + 关键数据
-// - 智能入口（4 张卡）：全部 / 收藏 / 最常播放 / 最近播放
-// - 「最近添加」与「最近播放」横向卡片轮播 + 列表
-// - 整页采用 16px 主间距 + 1px hairline 分隔
+// 椒盐风格首页（清晰 · 沉浸 · 记忆式）
+// 设计原则：
+// 1. 无干扰 hero——只放问候 + 关键数据
+// 2. 智能入口卡（2x2 网格）：全部 / 收藏 / 最常 / 最近
+// 3. 横向卡片轮播：最近播放 / 最常播放
+// 4. 列表式歌曲（默认折叠 8 首，可展开）
+// 5. 动态取色：当前播放歌曲封面主色应用到强调元素
 export default function Home() {
   const navigate = useNavigate();
   const songs = useLibraryStore((s) => s.songs);
@@ -34,19 +38,56 @@ export default function Home() {
   const setQueue = usePlayerStore((s) => s.setQueue);
   const playSong = usePlayerStore((s) => s.playSong);
   const playAt = usePlayerStore((s) => s.playAt);
+  const currentSong = usePlayerStore((s) => s.currentSong);
+  const settings = useSettingsStore((s) => s.settings);
   const [sheetSong, setSheetSong] = useState<Song | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  // 过滤掉黑名单
-  const visibleSongsAll = useMemo(
-    () => songs.filter((s) => !s.hidden),
-    [songs]
-  );
+  // 动态取色：从当前播放歌曲封面提取主色
+  useEffect(() => {
+    if (!settings.dynamicColor || !currentSong?.coverUrl) {
+      // 恢复默认强调色
+      document.documentElement.style.setProperty("--accent-color", getAccentDefault(settings.accentPreset, settings.accentCustom));
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, 32, 32);
+        const data = ctx.getImageData(0, 0, 32, 32).data;
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const cr = data[i], cg = data[i + 1], cb = data[i + 2];
+          const lum = 0.299 * cr + 0.587 * cg + 0.114 * cb;
+          if (lum < 40 || lum > 220) continue;
+          const max = Math.max(cr, cg, cb);
+          const min = Math.min(cr, cg, cb);
+          if (max - min < 25) continue;
+          r += cr; g += cg; b += cb; count++;
+        }
+        if (count > 0) {
+          const color = `rgb(${Math.round(r / count)}, ${Math.round(g / count)}, ${Math.round(b / count)})`;
+          document.documentElement.style.setProperty("--accent-color", color);
+        }
+      } catch {
+        // 跨域或读取失败
+      }
+    };
+    img.src = currentSong.coverUrl;
+  }, [settings.dynamicColor, settings.accentPreset, settings.accentCustom, currentSong?.coverUrl]);
+
+  const visibleSongsAll = useMemo(() => songs.filter((s) => !s.hidden), [songs]);
   const sortedSongs = useMemo(
     () => [...visibleSongsAll].sort((a, b) => b.addedAt - a.addedAt),
     [visibleSongsAll]
   );
-  const visibleSongs = showAll ? sortedSongs : sortedSongs.slice(0, 15);
+  const visibleSongs = showAll ? sortedSongs : sortedSongs.slice(0, 8);
 
   const favorites = useMemo(
     () => visibleSongsAll.filter((s) => s.favorite),
@@ -67,6 +108,17 @@ export default function Home() {
       .slice(0, 10)
       .map((x) => x.s);
   }, [visibleSongsAll, playCounts]);
+
+  // 简单问候语
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 6) return "夜深了";
+    if (h < 12) return "早上好";
+    if (h < 14) return "中午好";
+    if (h < 18) return "下午好";
+    if (h < 22) return "晚上好";
+    return "夜深了";
+  }, []);
 
   const handlePlayAll = () => {
     if (sortedSongs.length === 0) return;
@@ -94,112 +146,103 @@ export default function Home() {
   const totalMinutes = Math.round(totalDuration / 60);
 
   return (
-    <div className="relative min-h-screen pb-28">
-      {/* Hero 渐变背景：克制单色，避免多色噪点 */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[280px] overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-accent/12 via-accent/[0.03] to-transparent dark:from-accent/18 dark:via-accent/[0.04]" />
-        {/* 单颗大浮光 */}
-        <div className="absolute -top-32 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-accent/20 blur-3xl dark:bg-accent/25" />
-      </div>
-
-      {/* 顶部 */}
-      <header className="safe-top relative px-5 pt-5">
-        <div className="flex items-center justify-between">
+    <div className="relative min-h-screen pb-36">
+      {/* 顶部问候 + 数据 */}
+      <header className="safe-top px-5 pb-2 pt-5">
+        <div className="flex items-start justify-between">
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col"
+            transition={{ duration: 0.4 }}
           >
-            <div className="text-[10px] font-semibold uppercase tracking-[0.42em] text-ink-muted">
-              Ttan Music
+            <div className="text-[11px] font-medium uppercase tracking-[0.28em] text-ink-subtle">
+              {greeting}
             </div>
-            <h1 className="mt-1.5 text-[28px] font-extrabold leading-none tracking-tight">
-              <span className="text-gradient-accent">私人音乐空间</span>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink dark:text-white">
+              Ttan 音乐
             </h1>
           </motion.div>
           <motion.button
             type="button"
             onClick={() => navigate("/settings")}
             whileTap={{ scale: 0.9 }}
-            whileHover={{ scale: 1.06 }}
-            aria-label="设置"
-            initial={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1, duration: 0.4 }}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/60 text-ink shadow-sm backdrop-blur-md transition-colors hover:bg-white/90 dark:bg-white/8 dark:text-white dark:hover:bg-white/14"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.04] text-ink-muted transition-colors hover:bg-black/[0.08] dark:bg-white/[0.06] dark:text-white/70"
+            aria-label="设置"
           >
-            <SettingsIcon className="h-[18px] w-[18px]" />
+            <Plus className="h-5 w-5 rotate-45" />
           </motion.button>
         </div>
 
-        {/* 数据行 */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.5 }}
-          className="mt-4 flex items-center gap-4 text-xs text-ink-muted"
-        >
-          <div className="flex items-center gap-1.5">
-            <Music4 className="h-3.5 w-3.5 text-accent" />
-            <span className="font-semibold tabular-nums text-ink">{sortedSongs.length}</span>
-            <span>首</span>
-          </div>
-          <div className="h-3 w-px bg-black/10 dark:bg-white/10" />
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-accent" />
-            <span className="font-semibold tabular-nums text-ink">
-              {totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ` : ""}
-              {totalMinutes % 60}min
+        {hasSongs && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.15 }}
+            className="mt-3 flex items-center gap-3 text-[11px] text-ink-muted"
+          >
+            <span className="flex items-center gap-1">
+              <Music4 className="h-3 w-3 text-accent" />
+              <span className="font-semibold tabular-nums text-ink dark:text-white">{sortedSongs.length}</span>
+              <span>首</span>
             </span>
-          </div>
-          {favorites.length > 0 && (
-            <>
-              <div className="h-3 w-px bg-black/10 dark:bg-white/10" />
-              <div className="flex items-center gap-1.5">
-                <Heart className="h-3.5 w-3.5 text-rose-500" />
-                <span className="font-semibold tabular-nums text-ink">{favorites.length}</span>
-              </div>
-            </>
-          )}
-        </motion.div>
+            <span className="h-2.5 w-px bg-black/10 dark:bg-white/10" />
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3 text-accent" />
+              <span className="font-semibold tabular-nums text-ink dark:text-white">
+                {totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ` : ""}
+                {totalMinutes % 60}m
+              </span>
+            </span>
+            {favorites.length > 0 && (
+              <>
+                <span className="h-2.5 w-px bg-black/10 dark:bg-white/10" />
+                <span className="flex items-center gap-1">
+                  <Heart className="h-3 w-3 text-rose-500" />
+                  <span className="font-semibold tabular-nums text-ink dark:text-white">{favorites.length}</span>
+                </span>
+              </>
+            )}
+          </motion.div>
+        )}
       </header>
 
-      <div className="mx-auto max-w-[480px] space-y-7 px-4 pt-6">
-        {/* 智能入口：4 张极简卡 */}
+      <div className="mx-auto max-w-[480px] space-y-6 px-4 pt-3">
+        {/* 智能入口：2x2 网格（椒盐卡片风格） */}
         {hasSongs && (
           <motion.section
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.45 }}
-            className="grid grid-cols-4 gap-2"
+            transition={{ delay: 0.2, duration: 0.4 }}
+            className="grid grid-cols-2 gap-2.5"
           >
-            <SmartEntry
-              icon={<Music4 className="h-4 w-4" />}
-              label="全部"
+            <SmartCard
+              icon={<Music4 className="h-5 w-5" />}
+              label="全部歌曲"
               count={sortedSongs.length}
-              onClick={() => navigate("/playlists")}
+              onClick={() => navigate("/playlists?tab=all")}
             />
-            <SmartEntry
-              icon={<Heart className="h-4 w-4" />}
-              label="收藏"
+            <SmartCard
+              icon={<Heart className="h-5 w-5" />}
+              label="我的收藏"
               count={favorites.length}
-              onClick={() => navigate("/playlists?tab=favorites")}
-              tint="text-rose-500"
+              onClick={() => navigate("/my")}
+              tint="rose"
             />
-            <SmartEntry
-              icon={<Flame className="h-4 w-4" />}
-              label="最常"
+            <SmartCard
+              icon={<Flame className="h-5 w-5" />}
+              label="最常播放"
               count={mostPlayed.length}
-              onClick={() => navigate("/playlists?tab=most")}
-              tint="text-amber-500"
+              onClick={() => navigate("/playlists?tab=recent")}
+              tint="amber"
             />
-            <SmartEntry
-              icon={<Clock className="h-4 w-4" />}
-              label="最近"
+            <SmartCard
+              icon={<Clock className="h-5 w-5" />}
+              label="最近播放"
               count={recentSongs.length}
               onClick={() => navigate("/playlists?tab=recent")}
-              tint="text-sky-500"
+              tint="sky"
             />
           </motion.section>
         )}
@@ -209,9 +252,9 @@ export default function Home() {
           <ImportButton variant="full" />
         ) : (
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.4 }}
+            transition={{ delay: 0.25 }}
             className="flex items-center gap-2"
           >
             <div className="flex-1">
@@ -232,9 +275,9 @@ export default function Home() {
         {/* 最近播放：横向卡片轮播 */}
         {recentSongs.length > 0 && (
           <motion.section
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.45 }}
+            transition={{ delay: 0.3 }}
           >
             <SectionHeader
               title="最近播放"
@@ -257,14 +300,14 @@ export default function Home() {
         {/* 最常播放：横向卡片轮播 */}
         {mostPlayed.length > 0 && (
           <motion.section
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.45 }}
+            transition={{ delay: 0.35 }}
           >
             <SectionHeader
               title="最常播放"
               actionLabel="全部"
-              onAction={() => navigate("/playlists?tab=most")}
+              onAction={() => navigate("/playlists?tab=recent")}
             />
             <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
               {mostPlayed.slice(0, 8).map((song, i) => (
@@ -283,30 +326,25 @@ export default function Home() {
         {/* 歌曲列表 */}
         {hasSongs ? (
           <motion.section
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.45 }}
-            className="overflow-hidden rounded-3xl border border-black/[0.04] bg-white/70 shadow-card backdrop-blur-xl dark:border-white/[0.06] dark:bg-white/[0.04]"
+            transition={{ delay: 0.4 }}
           >
-            <div className="flex items-center justify-between px-4 py-3.5">
-              <div className="flex items-baseline gap-2">
-                <h2 className="text-sm font-bold text-ink">最近添加</h2>
-                <span className="text-[11px] font-normal tabular-nums text-ink-subtle">
-                  {sortedSongs.length} 首
-                </span>
-              </div>
-              <motion.button
-                type="button"
-                onClick={handlePlayAll}
-                whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/18"
-              >
-                <Play className="h-3 w-3 fill-accent" />
-                播放全部
-              </motion.button>
-            </div>
-
-            <div className="space-y-0.5 px-1.5 pb-1.5">
+            <SectionHeader
+              title="全部歌曲"
+              action={
+                <motion.button
+                  type="button"
+                  onClick={handlePlayAll}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/18"
+                >
+                  <Play className="h-3 w-3 fill-accent" />
+                  播放全部
+                </motion.button>
+              }
+            />
+            <div className="space-y-0.5">
               {visibleSongs.map((song, i) => (
                 <SongItem
                   key={song.id}
@@ -317,15 +355,15 @@ export default function Home() {
               ))}
             </div>
 
-            {sortedSongs.length > 15 && (
+            {sortedSongs.length > 8 && (
               <motion.button
                 type="button"
                 onClick={() => setShowAll((v) => !v)}
                 whileTap={{ scale: 0.98 }}
-                className="flex w-full items-center justify-center gap-1 border-t border-black/[0.04] py-3 text-xs font-medium text-ink-muted transition-colors hover:bg-black/[0.02] dark:border-white/[0.04] dark:hover:bg-white/[0.03]"
+                className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl py-2.5 text-xs font-medium text-ink-muted transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
               >
-                <ChevronDown
-                  className={`h-3.5 w-3.5 transition-transform ${showAll ? "rotate-180" : ""}`}
+                <ChevronRight
+                  className={cn("h-3.5 w-3.5 transition-transform", showAll && "rotate-90")}
                 />
                 {showAll ? "收起" : `展开全部 ${sortedSongs.length} 首`}
               </motion.button>
@@ -333,9 +371,9 @@ export default function Home() {
           </motion.section>
         ) : (
           <EmptyState
-            icon={<Music4 className="h-9 w-9" />}
+            icon={<Disc3 className="h-9 w-9" />}
             title="还没有音乐"
-            description="点击上方按钮，从设备中选择 MP3 / FLAC 等音频文件，所有解析都在本地完成。"
+            description="从设备选择 MP3 / FLAC 等音频文件，所有解析都在本地完成，音乐永久保存在浏览器中。"
           />
         )}
       </div>
@@ -345,33 +383,58 @@ export default function Home() {
   );
 }
 
-// ============ 智能入口卡 ============
-function SmartEntry({
+// 默认强调色（关闭动态取色时使用）
+function getAccentDefault(preset: string, custom: string): string {
+  if (preset === "custom") return custom;
+  const map: Record<string, string> = {
+    salt: "#FF6B35",
+    "retro-red": "#E8332F",
+    "spotify-green": "#1DB954",
+    "ocean-blue": "#2E8BFF",
+    "apple-pink": "#FF375F",
+    "mint-cyan": "#00C2A8",
+    "violet-purple": "#8B5CF6",
+  };
+  return map[preset] ?? "#FF6B35";
+}
+
+// ============ 智能入口卡（2x2 网格大卡） ============
+function SmartCard({
   icon,
   label,
   count,
   onClick,
-  tint = "text-accent",
+  tint = "accent",
 }: {
   icon: React.ReactNode;
   label: string;
   count: number;
   onClick: () => void;
-  tint?: string;
+  tint?: "accent" | "rose" | "amber" | "sky";
 }) {
+  const tintMap = {
+    accent: "bg-accent/10 text-accent",
+    rose: "bg-rose-500/10 text-rose-500",
+    amber: "bg-amber-500/10 text-amber-500",
+    sky: "bg-sky-500/10 text-sky-500",
+  };
   return (
     <motion.button
       type="button"
       onClick={onClick}
-      whileTap={{ scale: 0.94 }}
+      whileTap={{ scale: 0.97 }}
       whileHover={{ y: -1 }}
-      className="flex flex-col items-center gap-1.5 rounded-2xl border border-black/[0.04] bg-white/70 px-2 py-3 shadow-card backdrop-blur-md transition-colors hover:bg-white dark:border-white/[0.06] dark:bg-white/[0.05] dark:hover:bg-white/[0.09]"
+      className="flex items-center gap-3 rounded-2xl border border-black/[0.04] bg-white px-4 py-3.5 text-left shadow-card transition-colors hover:bg-white/90 dark:border-white/[0.06] dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
     >
-      <div className={cn("flex h-8 w-8 items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.08]", tint)}>
+      <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", tintMap[tint])}>
         {icon}
       </div>
-      <div className="text-xs font-semibold text-ink">{label}</div>
-      <div className="text-[10px] tabular-nums text-ink-subtle">{count}</div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-ink dark:text-white">{label}</div>
+        <div className="mt-0.5 text-[11px] tabular-nums text-ink-muted">
+          {count} 首
+        </div>
+      </div>
     </motion.button>
   );
 }
@@ -380,24 +443,28 @@ function SmartEntry({
 function SectionHeader({
   title,
   actionLabel,
+  action,
   onAction,
 }: {
   title: string;
   actionLabel?: string;
+  action?: React.ReactNode;
   onAction?: () => void;
 }) {
   return (
     <div className="mb-2.5 flex items-center justify-between px-1">
-      <h2 className="text-base font-bold text-ink">{title}</h2>
-      {actionLabel && onAction && (
-        <button
-          type="button"
-          onClick={onAction}
-          className="text-xs font-medium text-ink-muted transition-colors hover:text-accent"
-        >
-          {actionLabel}
-        </button>
-      )}
+      <h2 className="text-base font-bold text-ink dark:text-white">{title}</h2>
+      {action
+        ? action
+        : actionLabel && onAction && (
+            <button
+              type="button"
+              onClick={onAction}
+              className="text-xs font-medium text-ink-muted transition-colors hover:text-accent"
+            >
+              {actionLabel}
+            </button>
+          )}
     </div>
   );
 }
@@ -433,7 +500,7 @@ function RecentCard({
           className="!w-full !h-auto aspect-square"
         />
         {/* hover 播放按钮 */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-active:opacity-100">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/95 shadow-lg">
             <Play className="h-4 w-4 translate-x-0.5 fill-black text-black" />
           </div>
@@ -445,7 +512,7 @@ function RecentCard({
         )}
       </div>
       <div className="mt-2 px-0.5">
-        <div className="text-truncate text-xs font-semibold text-ink">{song.title}</div>
+        <div className="text-truncate text-xs font-semibold text-ink dark:text-white">{song.title}</div>
         <div className="text-truncate text-[11px] text-ink-muted">{song.artist}</div>
       </div>
     </motion.button>

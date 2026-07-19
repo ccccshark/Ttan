@@ -1,4 +1,6 @@
 // 歌曲数据模型
+// 注意：fileBlob/coverBlob 仅用于 IndexedDB 持久化，运行时通过 fileUrl/coverUrl (blob:) 播放
+// 重启后从 DB 加载时，会重新 URL.createObjectURL 生成新的 blob: URL
 export interface Song {
   id: string;
   title: string;
@@ -24,6 +26,11 @@ export interface Song {
   lastPlayedAt?: number;
   favorite?: boolean;
   hidden?: boolean; // 黑名单标记
+  // === 持久化字段（不参与 UI 渲染） ===
+  // 音频文件原始 Blob，重启后用此重建 fileUrl
+  fileBlob?: Blob;
+  // 封面图原始 Blob，重启后用此重建 coverUrl；无封面则为 undefined
+  coverBlob?: Blob;
 }
 
 // 歌单

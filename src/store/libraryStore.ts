@@ -1,12 +1,17 @@
 import { create } from "zustand";
 import type { Playlist, PlayCount, Song } from "@/types";
-import { filesToSongs } from "@/utils/metadata";
+import { filesToSongs, getPlaceholderCover } from "@/utils/metadata";
 import {
+  clearLibrary as dbClearLibrary,
   deletePlaylist as dbDeletePlaylist,
+  deleteSong as dbDeleteSong,
   getAllPlaylists,
   getAllPlayCounts,
+  getAllSongs,
   getRecents,
   savePlaylist,
+  saveSong,
+  saveSongs,
 } from "@/utils/db";
 import { generateId } from "@/utils/format";
 
@@ -19,12 +24,17 @@ interface LibraryState {
   playCounts: Record<string, PlayCount>;
   importState: ImportState;
   importProgress: { done: number; total: number };
+  /** 已加载标记：避免重复加载 */
+  loaded: boolean;
 
+  /** 启动时加载：从 IndexedDB 读取所有歌曲，并重建 blob URL */
+  loadLibrary: () => Promise<void>;
   addFiles: (files: File[]) => Promise<void>;
-  removeSong: (id: string) => void;
-  clearLibrary: () => void;
-  toggleFavorite: (id: string) => void;
-  toggleHidden: (id: string) => void;
+  removeSong: (id: string) => Promise<void>;
+  clearLibrary: () => Promise<void>;
+  toggleFavorite: (id: string) => Promise<void>;
+  toggleHidden: (id: string) => Promise<void>;
+  updateSong: (id: string, patch: Partial<Song>) => Promise<void>;
   /** 同步播放次数到内存（由 playerStore 调用） */
   syncPlayCount: (songId: string, pc: PlayCount) => void;
 
@@ -39,6 +49,20 @@ interface LibraryState {
   loadPlayCounts: () => Promise<void>;
 }
 
+// 从 IndexedDB 加载 Song 时，根据 fileBlob/coverBlob 重建 blob URL
+function rebuildSongUrls(song: Song): Song {
+  const next: Song = { ...song };
+  if (song.fileBlob) {
+    next.fileUrl = URL.createObjectURL(song.fileBlob);
+  }
+  if (song.coverBlob) {
+    next.coverUrl = URL.createObjectURL(song.coverBlob);
+  } else {
+    next.coverUrl = getPlaceholderCover();
+  }
+  return next;
+}
+
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   songs: [],
   playlists: [],
@@ -46,6 +70,19 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   playCounts: {},
   importState: "idle",
   importProgress: { done: 0, total: 0 },
+  loaded: false,
+
+  loadLibrary: async () => {
+    if (get().loaded) return;
+    try {
+      const all = await getAllSongs();
+      const songs = all.map(rebuildSongUrls);
+      set({ songs, loaded: true });
+    } catch (err) {
+      console.error("加载音乐库失败:", err);
+      set({ loaded: true });
+    }
+  },
 
   addFiles: async (files) => {
     if (files.length === 0) return;
@@ -59,6 +96,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       const filtered = newSongs.filter(
         (s) => !existing.has(`${s.fileName}-${s.fileSize}`)
       );
+      // 持久化到 IndexedDB（含 fileBlob/coverBlob）
+      await saveSongs(filtered);
       set({
         songs: [...get().songs, ...filtered],
         importState: "done",
@@ -69,24 +108,48 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 
-  removeSong: (id) =>
-    set({ songs: get().songs.filter((s) => s.id !== id) }),
+  removeSong: async (id) => {
+    await dbDeleteSong(id).catch(() => {});
+    set({ songs: get().songs.filter((s) => s.id !== id) });
+  },
 
-  clearLibrary: () => set({ songs: [] }),
+  clearLibrary: async () => {
+    await dbClearLibrary().catch(() => {});
+    set({ songs: [] });
+  },
 
-  toggleFavorite: (id) =>
-    set({
-      songs: get().songs.map((s) =>
-        s.id === id ? { ...s, favorite: !s.favorite } : s
-      ),
-    }),
+  toggleFavorite: async (id) => {
+    let patched: Song | undefined;
+    const songs = get().songs.map((s) => {
+      if (s.id !== id) return s;
+      patched = { ...s, favorite: !s.favorite };
+      return patched;
+    });
+    set({ songs });
+    if (patched) await saveSong(patched).catch(() => {});
+  },
 
-  toggleHidden: (id) =>
-    set({
-      songs: get().songs.map((s) =>
-        s.id === id ? { ...s, hidden: !s.hidden } : s
-      ),
-    }),
+  toggleHidden: async (id) => {
+    let patched: Song | undefined;
+    const songs = get().songs.map((s) => {
+      if (s.id !== id) return s;
+      patched = { ...s, hidden: !s.hidden };
+      return patched;
+    });
+    set({ songs });
+    if (patched) await saveSong(patched).catch(() => {});
+  },
+
+  updateSong: async (id, patch) => {
+    let patched: Song | undefined;
+    const songs = get().songs.map((s) => {
+      if (s.id !== id) return s;
+      patched = { ...s, ...patch };
+      return patched;
+    });
+    set({ songs });
+    if (patched) await saveSong(patched).catch(() => {});
+  },
 
   syncPlayCount: (songId, pc) =>
     set({

@@ -28,13 +28,15 @@ export default function MiniPlayer() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
-          className="safe-bottom fixed inset-x-0 bottom-0 z-30 px-3 pb-2"
+          // 浮在底部导航之上：bottom 偏移 60px（nav 高度）+ 安全区
+          className="fixed inset-x-0 z-30 px-3"
+          style={{ bottom: "calc(60px + env(safe-area-inset-bottom, 0px))" }}
         >
           <motion.button
             type="button"
             onClick={() => navigate("/playing")}
             whileTap={{ scale: 0.985 }}
-            className="mx-auto block w-full max-w-[480px] overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-mini backdrop-blur-2xl dark:bg-white/[0.06] dark:backdrop-saturate-200"
+            className="mx-auto block w-full max-w-[460px] overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-mini backdrop-blur-2xl dark:bg-white/[0.06] dark:backdrop-saturate-200"
             style={{
               // 液态玻璃质感
               backdropFilter: "blur(40px) saturate(180%)",
