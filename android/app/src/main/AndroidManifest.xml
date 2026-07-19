@@ -44,6 +44,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 13+ 读取音频文件（用于直接读取本地音乐） -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Android 13+ 读取图片（用于封面） -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <!-- 兼容 Android 12 及以下 -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
@@ -51,4 +53,15 @@
     <!-- 后台播放（保持音频在锁屏时继续） -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Android 13+ 通知权限（用于 MediaSession 通知） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 蓝牙音频设备连接 -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- 麦克风（用于可能的语音功能） -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 震动反馈 -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

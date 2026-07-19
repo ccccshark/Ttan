@@ -44,7 +44,7 @@ interface RowProps {
   trailing?: ReactNode;
 }
 
-export function Row({ title, subtitle, trailing, onClick, chevron }: RowProps) {
+export function Row({ title, subtitle, children, trailing, onClick, chevron }: RowProps) {
   const clickable = !!onClick;
   return (
     <motion.div
@@ -61,6 +61,7 @@ export function Row({ title, subtitle, trailing, onClick, chevron }: RowProps) {
           <div className="mt-0.5 text-xs text-ink-muted">{subtitle}</div>
         )}
       </div>
+      {children && <div className="shrink-0">{children}</div>}
       {trailing && <div className="shrink-0">{trailing}</div>}
       {clickable && (chevron ?? true) && (
         <ChevronRight className="h-4 w-4 shrink-0 text-ink-subtle" />

@@ -148,7 +148,7 @@ export default function Home() {
   return (
     <div className="relative min-h-screen pb-36">
       {/* 顶部问候 + 数据 */}
-      <header className="safe-top px-5 pb-2 pt-5">
+      <header className="safe-top px-5 pb-2 pt-2">
         <div className="flex items-start justify-between">
           <motion.div
             initial={{ opacity: 0, y: -6 }}

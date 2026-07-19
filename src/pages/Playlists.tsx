@@ -148,7 +148,7 @@ export default function Playlists() {
 
     return (
       <div className="min-h-screen pb-28">
-        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3 pt-2">
+        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3">
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={() => setSelectedPlaylist(null)}>
               <ArrowLeft className="h-5 w-5" />
@@ -221,7 +221,7 @@ export default function Playlists() {
   if (selectedAlbum) {
     return (
       <div className="min-h-screen pb-28">
-        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3 pt-2">
+        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3">
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={() => setSelectedAlbum(null)}>
               <ArrowLeft className="h-5 w-5" />
@@ -286,7 +286,7 @@ export default function Playlists() {
     }
     return (
       <div className="min-h-screen pb-28">
-        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3 pt-2">
+        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3">
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={() => setSelectedArtist(null)}>
               <ArrowLeft className="h-5 w-5" />

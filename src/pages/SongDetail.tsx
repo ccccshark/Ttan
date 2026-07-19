@@ -44,7 +44,7 @@ export default function SongDetail() {
   if (!song) {
     return (
       <div className="min-h-screen pb-28">
-        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3 pt-2">
+        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3">
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />

@@ -186,7 +186,7 @@ export default function Settings() {
     <div className="min-h-screen bg-surface-subtle pb-28 dark:bg-surface-dark">
       {/* 顶部导航 */}
       <header className="safe-top sticky top-0 z-10 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#05060f]/70">
-        <div className="mx-auto flex max-w-[480px] items-center gap-2 px-3 py-3">
+        <div className="mx-auto flex max-w-[480px] items-center gap-2 px-3 py-2">
           <button
             type="button"
             onClick={() => navigate(-1)}
