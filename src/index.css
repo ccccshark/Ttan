@@ -191,6 +191,73 @@ input[type="range"].slider::-moz-range-thumb {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
+/* 均衡器垂直滑块 */
+input[type="range"].eq-slider {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  width: 22px;
+  height: 110px;
+  cursor: pointer;
+  background: transparent;
+}
+/* 现代浏览器（Chromium 101+）使用 writing-mode 模拟垂直 */
+@supports (writing-mode: vertical-lr) {
+  input[type="range"].eq-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    writing-mode: vertical-lr;
+    direction: rtl;
+    width: 22px;
+    height: 110px;
+    background: transparent;
+  }
+  input[type="range"].eq-slider::-webkit-slider-runnable-track {
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(
+      to top,
+      transparent 0%,
+      transparent 50%,
+      rgba(255, 107, 53, 0.5) 50%,
+      rgba(255, 107, 53, 0.5) 50%
+    );
+    border-radius: 999px;
+    background-color: rgba(127, 127, 127, 0.2);
+  }
+  .dark input[type="range"].eq-slider::-webkit-slider-runnable-track {
+    background-color: rgba(255, 255, 255, 0.12);
+  }
+  input[type="range"].eq-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 2px solid var(--accent-color, #ff6b35);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    margin-top: 0;
+    margin-left: -5px;
+  }
+  input[type="range"].eq-slider::-moz-range-track {
+    width: 4px;
+    height: 100%;
+    background: rgba(127, 127, 127, 0.2);
+    border-radius: 999px;
+  }
+  .dark input[type="range"].eq-slider::-moz-range-track {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  input[type="range"].eq-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 2px solid var(--accent-color, #ff6b35);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+}
+
 /* 骨架屏 */
 .skeleton {
   background: linear-gradient(

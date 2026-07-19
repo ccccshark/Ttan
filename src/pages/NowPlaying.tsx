@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, type PanInfo } from "framer-motion";
 import {
   ChevronDown,
   Disc3,
+  Heart,
   ListMusic,
   Mic2,
   MoreHorizontal,
@@ -11,12 +12,16 @@ import {
   Play,
   Repeat,
   Repeat1,
+  Share2,
   Shuffle,
   SkipBack,
   SkipForward,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { usePlayerStore } from "@/store/playerStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useLibraryStore } from "@/store/libraryStore";
 import { useAudioAnalyser } from "@/hooks/useAudioAnalyser";
 import ParticleField from "@/components/ParticleField";
 import FlowingLight from "@/components/FlowingLight";
@@ -24,17 +29,19 @@ import LyricsStage from "@/components/LyricsStage";
 import ProgressBar from "@/components/ProgressBar";
 import IconButton from "@/components/IconButton";
 import CoverArt from "@/components/CoverArt";
+import SpectrumVisualizer from "@/components/SpectrumVisualizer";
 import type { PlayMode } from "@/types";
 import { formatTime } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
-// Ttan 播放页：
-// - 三层视觉：FlowingLight 动态流光（SaltPlayer 风）+ ParticleField 星河（Mineradio 风）+ 暗色渐变
-// - 双面分屏：左滑看封面、右滑看歌词（参考 SaltPlayer）
-// - 横向滑动手势切换主次视图
-// - 底部封面+控制栏，封面节拍脉动
-// - 右下角低调 Live/Paused 指示
-
+// Ttan 播放页（简约高级感）：
+// - 顶部精致状态栏 + 透明返回
+// - 双面：封面（方形/黑胶）/ 歌词
+// - 频谱可视化条带（可选）
+// - 收藏按钮 + 分享按钮 + 队列按钮
+// - 进度条 + 控制按钮（统一字号与间距）
+// - 双击播放/暂停、左右滑切歌
+// - 队列抽屉支持长按移除
 type View = "stage" | "cover";
 
 export default function NowPlaying() {
@@ -46,17 +53,22 @@ export default function NowPlaying() {
   const playMode = usePlayerStore((s) => s.playMode);
   const queue = usePlayerStore((s) => s.queue);
   const currentIndex = usePlayerStore((s) => s.currentIndex);
+  const volume = usePlayerStore((s) => s.volume);
+  const muted = usePlayerStore((s) => s.muted);
   const togglePlay = usePlayerStore((s) => s.togglePlay);
   const next = usePlayerStore((s) => s.next);
   const prev = usePlayerStore((s) => s.prev);
   const cyclePlayMode = usePlayerStore((s) => s.cyclePlayMode);
   const playAt = usePlayerStore((s) => s.playAt);
+  const setVolume = usePlayerStore((s) => s.setVolume);
+  const toggleMute = usePlayerStore((s) => s.toggleMute);
   const _onRequestSeek = usePlayerStore((s) => s._onRequestSeek);
 
   const analysis = useAudioAnalyser(isPlaying && !!currentSong);
   const settings = useSettingsStore((s) => s.settings);
+  const toggleFavorite = useLibraryStore((s) => s.toggleFavorite);
 
-  // 动态取色：从封面提取主色注入 --accent-color CSS 变量
+  // 动态取色
   useEffect(() => {
     if (!settings.dynamicColor || !currentSong?.coverUrl) return;
     const img = new Image();
@@ -70,7 +82,6 @@ export default function NowPlaying() {
         if (!ctx) return;
         ctx.drawImage(img, 0, 0, 32, 32);
         const data = ctx.getImageData(0, 0, 32, 32).data;
-        // 取最饱和且不太暗/亮的像素均值
         let r = 0, g = 0, b = 0, count = 0;
         for (let i = 0; i < data.length; i += 4) {
           const cr = data[i], cg = data[i + 1], cb = data[i + 2];
@@ -86,7 +97,7 @@ export default function NowPlaying() {
           document.documentElement.style.setProperty("--accent-color", color);
         }
       } catch {
-        // 跨域或读取失败，忽略
+        // 跨域或读取失败
       }
     };
     img.src = currentSong.coverUrl;
@@ -94,11 +105,39 @@ export default function NowPlaying() {
 
   const [view, setView] = useState<View>("cover");
   const [showQueue, setShowQueue] = useState(false);
+  const [showVolume, setShowVolume] = useState(false);
   const [showLyricsHint, setShowLyricsHint] = useState(true);
 
-  // 横向滑动手势：左滑看歌词，右滑看封面
+  // 双击检测
+  const lastTapRef = useRef(0);
+  const handleDoubleTap = () => {
+    if (!settings.doubleTapToPause) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      togglePlay();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
+  // 横向滑动手势
   const handleDragEnd = (_e: unknown, info: PanInfo) => {
     const threshold = 60;
+    // 横向大幅滑动
+    if (Math.abs(info.offset.x) > Math.abs(info.offset.y) * 1.4) {
+      if (settings.swipeToSwitch) {
+        if (info.offset.x < -threshold) {
+          next();
+          return;
+        }
+        if (info.offset.x > threshold) {
+          prev();
+          return;
+        }
+      }
+    }
+    // 否则按原行为：左滑看歌词
     if (info.offset.x < -threshold && view === "cover") {
       setView("stage");
       setShowLyricsHint(false);
@@ -155,12 +194,13 @@ export default function NowPlaying() {
   };
 
   const hasLyrics = !!currentSong.lyrics;
-  // 无歌词时锁定在 cover 视图
-  const effectiveView = hasLyrics ? view : "cover";
+  const effectiveView: View = hasLyrics ? view : "cover";
+  const isFavorite = !!currentSong.favorite;
+  const isVinyl = settings.coverStyle === "vinyl";
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-white">
-      {/* 背景层（根据 settings.playbackBackground 渲染）*/}
+      {/* 背景层 */}
       {settings.playbackBackground === "flowLight" && (
         <FlowingLight
           coverUrl={currentSong.coverUrl}
@@ -200,8 +240,8 @@ export default function NowPlaying() {
         <div className="absolute inset-0 -z-20 bg-black" />
       )}
 
-      {/* 暗色渐变遮罩（始终在最上层，提升文字可读性）*/}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
+      {/* 暗色渐变遮罩 */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-black/30 via-transparent to-black/70" />
 
       {/* 顶部栏 */}
       <div className="safe-top relative flex items-center justify-between px-4 pt-3">
@@ -229,13 +269,14 @@ export default function NowPlaying() {
         </IconButton>
       </div>
 
-      {/* 主区域：可横向滑动切换 cover/stage */}
+      {/* 主区域 */}
       <motion.div
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.18}
         onDragEnd={handleDragEnd}
-        className="relative mx-auto flex min-h-[calc(100vh-220px)] max-w-[480px] cursor-grab touch-pan-y px-2 active:cursor-grabbing"
+        onTap={handleDoubleTap}
+        className="relative mx-auto flex min-h-[calc(100vh-260px)] max-w-[480px] cursor-grab touch-pan-y px-2 active:cursor-grabbing"
       >
         <AnimatePresence mode="wait">
           {effectiveView === "stage" ? (
@@ -275,23 +316,51 @@ export default function NowPlaying() {
                   }))`,
                 }}
               >
-                <CoverArt
-                  src={currentSong.coverUrl}
-                  alt={currentSong.title}
-                  size={280}
-                  rounded="lg"
-                  className="ring-1 ring-white/15"
-                />
+                <div className={cn("relative", isVinyl && "rounded-full overflow-hidden")}>
+                  <CoverArt
+                    src={currentSong.coverUrl}
+                    alt={currentSong.title}
+                    size={isVinyl ? 280 : 280}
+                    rounded={isVinyl ? "full" : "lg"}
+                    spinning={isVinyl && isPlaying}
+                    className={cn(
+                      "ring-1 ring-white/15",
+                      isVinyl && "shadow-[0_0_60px_rgba(0,0,0,0.5)]"
+                    )}
+                  />
+                  {/* 黑胶中心孔 */}
+                  {isVinyl && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <div className="h-16 w-16 rounded-full bg-[#05060f] ring-4 ring-black/40 flex items-center justify-center">
+                        <div className="h-3 w-3 rounded-full bg-white/30" />
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {/* 节拍光环 */}
-                <motion.div
-                  className="absolute -inset-3 -z-10 rounded-3xl"
-                  animate={{
-                    boxShadow: `0 0 ${30 + analysis.bass * 90}px rgba(120, 160, 255, ${
-                      0.4 + analysis.bass * 0.5
-                    })`,
-                  }}
-                />
+                {!isVinyl && (
+                  <motion.div
+                    className="absolute -inset-3 -z-10 rounded-3xl"
+                    animate={{
+                      boxShadow: `0 0 ${30 + analysis.bass * 90}px rgba(120, 160, 255, ${
+                        0.4 + analysis.bass * 0.5
+                      })`,
+                    }}
+                  />
+                )}
               </motion.div>
+
+              {/* 频谱可视化 */}
+              {settings.spectrumStyle !== "off" && (
+                <div className="mt-6 h-12 w-full max-w-[280px] opacity-80">
+                  <SpectrumVisualizer
+                    isPlaying={isPlaying}
+                    style={settings.spectrumStyle}
+                    mirror={settings.spectrumStyle === "mirror"}
+                    barCount={48}
+                  />
+                </div>
+              )}
 
               {/* 歌曲信息 */}
               <motion.div
@@ -299,7 +368,7 @@ export default function NowPlaying() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.4 }}
-                className="mt-8 w-full max-w-[320px] text-center"
+                className="mt-6 w-full max-w-[320px] text-center"
               >
                 <h1 className="text-truncate text-2xl font-bold leading-tight">
                   {currentSong.title}
@@ -313,18 +382,87 @@ export default function NowPlaying() {
                     </>
                   )}
                 </p>
+                {/* 技术信息小标签 */}
+                {(currentSong.codec || currentSong.bitrate) && (
+                  <div className="mt-2 flex items-center justify-center gap-2 text-[10px] uppercase tracking-wider text-white/40">
+                    {currentSong.codec && <span>{currentSong.codec}</span>}
+                    {currentSong.bitrate && (
+                      <>
+                        <span className="text-white/20">·</span>
+                        <span>{currentSong.bitrate} kbps</span>
+                      </>
+                    )}
+                    {currentSong.sampleRate && (
+                      <>
+                        <span className="text-white/20">·</span>
+                        <span>{(currentSong.sampleRate / 1000).toFixed(1)} kHz</span>
+                      </>
+                    )}
+                  </div>
+                )}
               </motion.div>
 
-              {/* 滑动提示（首次进入时显示）*/}
+              {/* 收藏 + 分享 + 歌词切换 */}
+              <div className="mt-5 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(currentSong.id)}
+                  aria-label="收藏"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/8 backdrop-blur-md transition-colors hover:bg-white/15"
+                >
+                  <Heart
+                    className={cn(
+                      "h-5 w-5 transition-all",
+                      isFavorite ? "fill-rose-500 text-rose-500 scale-110" : "text-white/70"
+                    )}
+                  />
+                </button>
+                {hasLyrics && (
+                  <button
+                    type="button"
+                    onClick={() => setView(view === "stage" ? "cover" : "stage")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-colors",
+                      view === "stage"
+                        ? "bg-white/12 text-white/80 hover:bg-white/20"
+                        : "bg-white text-[#05060f]"
+                    )}
+                  >
+                    {view === "stage" ? (
+                      <>
+                        <Disc3 className="h-3.5 w-3.5" />
+                        封面
+                      </>
+                    ) : (
+                      <>
+                        <Mic2 className="h-3.5 w-3.5" />
+                        歌词
+                      </>
+                    )}
+                  </button>
+                )}
+                {settings.shareLyricCard && (
+                  <button
+                    type="button"
+                    aria-label="分享"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white/8 backdrop-blur-md transition-colors hover:bg-white/15"
+                  >
+                    <Share2 className="h-[18px] w-[18px] text-white/70" />
+                  </button>
+                )}
+              </div>
+
+              {/* 滑动提示 */}
               {showLyricsHint && hasLyrics && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
                   transition={{ delay: 0.8 }}
-                  className="mt-6 flex items-center gap-2 rounded-full bg-white/8 px-3 py-1.5 text-[11px] text-white/55 backdrop-blur-md"
+                  className="mt-4 flex items-center gap-2 rounded-full bg-white/8 px-3 py-1.5 text-[11px] text-white/55 backdrop-blur-md"
                 >
                   <Mic2 className="h-3 w-3" />
-                  左滑查看歌词
+                  左滑看歌词 · 双击暂停 · 滑动切歌
                 </motion.div>
               )}
             </motion.div>
@@ -332,66 +470,8 @@ export default function NowPlaying() {
         </AnimatePresence>
       </motion.div>
 
-      {/* 底部：歌曲信息 + 进度条 + 控制 */}
+      {/* 底部：进度条 + 控制 */}
       <div className="safe-bottom relative mx-auto w-full max-w-[480px] px-5 pb-3 pt-2">
-        {/* 歌曲信息行 + 视图切换 */}
-        <div className="mb-3 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => hasLyrics && setView(effectiveView === "stage" ? "cover" : "stage")}
-            className="flex min-w-0 flex-1 items-center gap-3 text-left"
-            disabled={!hasLyrics}
-          >
-            <motion.div
-              animate={{
-                boxShadow: `0 0 ${10 + analysis.bass * 25}px rgba(120, 160, 255, ${
-                  0.3 + analysis.bass * 0.5
-                })`,
-              }}
-              className="rounded-lg"
-            >
-              <CoverArt
-                src={currentSong.coverUrl}
-                alt={currentSong.title}
-                size={40}
-                rounded="md"
-              />
-            </motion.div>
-            <div className="min-w-0 flex-1">
-              <div className="text-truncate text-sm font-semibold">
-                {currentSong.title}
-              </div>
-              <div className="text-truncate text-xs text-white/55">
-                {currentSong.artist}
-              </div>
-            </div>
-          </button>
-          {hasLyrics && (
-            <button
-              type="button"
-              onClick={() => setView(effectiveView === "stage" ? "cover" : "stage")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                effectiveView === "cover"
-                  ? "bg-white text-[#05060f]"
-                  : "bg-white/12 text-white/80 hover:bg-white/20"
-              )}
-            >
-              {effectiveView === "cover" ? (
-                <>
-                  <Mic2 className="h-3.5 w-3.5" />
-                  歌词
-                </>
-              ) : (
-                <>
-                  <Disc3 className="h-3.5 w-3.5" />
-                  封面
-                </>
-              )}
-            </button>
-          )}
-        </div>
-
         {/* 进度条 */}
         <div className="mb-3">
           <ProgressBar
@@ -473,13 +553,51 @@ export default function NowPlaying() {
           </motion.button>
 
           <IconButton
-            ariaLabel="更多"
+            ariaLabel="音量"
+            onClick={() => {
+              toggleMute();
+              setShowVolume((v) => !v);
+            }}
             className="text-white/75 hover:bg-white/15"
             size="sm"
           >
-            <MoreHorizontal className="h-[18px] w-[18px]" />
+            {muted || volume === 0 ? (
+              <VolumeX className="h-[18px] w-[18px]" />
+            ) : (
+              <Volume2 className="h-[18px] w-[18px]" />
+            )}
           </IconButton>
         </div>
+
+        {/* 音量滑出条 */}
+        <AnimatePresence>
+          {showVolume && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="mt-3 flex items-center gap-3 rounded-2xl bg-white/8 px-4 py-2 backdrop-blur-md"
+            >
+              <VolumeX className="h-4 w-4 text-white/55" />
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={muted ? 0 : volume}
+                onChange={(e) => setVolume(Number(e.target.value))}
+                className="slider h-1.5 flex-1"
+                style={
+                  {
+                    background: `linear-gradient(to right, #fff 0%, #fff ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.18) ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.18) 100%)`,
+                    borderRadius: 999,
+                  } as React.CSSProperties
+                }
+              />
+              <Volume2 className="h-4 w-4 text-white/55" />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* 右下角低调播放状态指示 */}
@@ -618,6 +736,11 @@ export default function NowPlaying() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 更多操作菜单（占位：可扩展为下拉菜单） */}
+      <div className="pointer-events-none">
+        <MoreHorizontal className="hidden" />
+      </div>
     </div>
   );
 }

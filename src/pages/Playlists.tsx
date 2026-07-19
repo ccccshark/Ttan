@@ -9,6 +9,7 @@ import {
   Play,
   Plus,
   Trash2,
+  User2,
 } from "lucide-react";
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
@@ -20,7 +21,23 @@ import IconButton from "@/components/IconButton";
 import type { Playlist, Song } from "@/types";
 import { cn } from "@/lib/utils";
 
-type Tab = "all" | "recent" | "mine";
+type Tab = "all" | "recent" | "albums" | "artists" | "mine";
+
+interface AlbumGroup {
+  key: string;
+  name: string;
+  artist: string;
+  coverUrl: string;
+  songs: Song[];
+}
+
+interface ArtistGroup {
+  key: string;
+  name: string;
+  coverUrl: string;
+  songs: Song[];
+  albumCount: number;
+}
 
 export default function Playlists() {
   const [params, setParams] = useSearchParams();
@@ -39,6 +56,8 @@ export default function Playlists() {
   const playSong = usePlayerStore((s) => s.playSong);
 
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<AlbumGroup | null>(null);
+  const [selectedArtist, setSelectedArtist] = useState<ArtistGroup | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
 
@@ -53,6 +72,54 @@ export default function Playlists() {
       .map((id) => map.get(id))
       .filter((s): s is Song => !!s);
   }, [recentIds, songs]);
+
+  // 按专辑分组
+  const albums = useMemo<AlbumGroup[]>(() => {
+    const map = new Map<string, AlbumGroup>();
+    for (const s of songs) {
+      const name = s.album && s.album !== "未知" ? s.album : "未知专辑";
+      const key = `${name}__${s.artist || "未知"}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name,
+          artist: s.artist || "未知艺人",
+          coverUrl: s.coverUrl,
+          songs: [],
+        });
+      }
+      map.get(key)!.songs.push(s);
+    }
+    return Array.from(map.values()).sort((a, b) => b.songs.length - a.songs.length);
+  }, [songs]);
+
+  // 按艺人分组
+  const artists = useMemo<ArtistGroup[]>(() => {
+    const map = new Map<string, ArtistGroup>();
+    for (const s of songs) {
+      const name = s.artist && s.artist !== "未知" ? s.artist : "未知艺人";
+      const key = name;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name,
+          coverUrl: s.coverUrl,
+          songs: [],
+          albumCount: 0,
+        });
+      }
+      map.get(key)!.songs.push(s);
+    }
+    // 统计每人的专辑数
+    for (const artist of map.values()) {
+      const albumSet = new Set<string>();
+      for (const s of artist.songs) {
+        if (s.album && s.album !== "未知") albumSet.add(s.album);
+      }
+      artist.albumCount = albumSet.size;
+    }
+    return Array.from(map.values()).sort((a, b) => b.songs.length - a.songs.length);
+  }, [songs]);
 
   const setTab = (t: Tab) => {
     params.set("tab", t);
@@ -81,13 +148,9 @@ export default function Playlists() {
 
     return (
       <div className="min-h-screen pb-28">
-        {/* 头部 - 带毛玻璃 */}
         <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3 pt-2">
           <div className="flex items-center gap-2">
-            <IconButton
-              ariaLabel="返回"
-              onClick={() => setSelectedPlaylist(null)}
-            >
+            <IconButton ariaLabel="返回" onClick={() => setSelectedPlaylist(null)}>
               <ArrowLeft className="h-5 w-5" />
             </IconButton>
             <h1 className="flex-1 text-truncate text-lg font-bold text-ink">
@@ -110,7 +173,6 @@ export default function Playlists() {
         </div>
 
         <div className="mx-auto max-w-[480px] px-4 pt-3">
-          {/* 歌单信息卡 */}
           <div className="mb-4 flex items-center gap-4 rounded-2xl bg-white p-4 shadow-card dark:bg-surface-card">
             <CoverArt
               src={playlistSongs[0]?.coverUrl}
@@ -155,16 +217,177 @@ export default function Playlists() {
     );
   }
 
+  // 专辑详情视图
+  if (selectedAlbum) {
+    return (
+      <div className="min-h-screen pb-28">
+        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3 pt-2">
+          <div className="flex items-center gap-2">
+            <IconButton ariaLabel="返回" onClick={() => setSelectedAlbum(null)}>
+              <ArrowLeft className="h-5 w-5" />
+            </IconButton>
+            <h1 className="flex-1 text-truncate text-lg font-bold text-ink">
+              {selectedAlbum.name}
+            </h1>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-[480px] px-4 pt-3">
+          <div className="mb-4 flex items-center gap-4 rounded-2xl bg-white p-4 shadow-card dark:bg-surface-card">
+            <CoverArt
+              src={selectedAlbum.coverUrl}
+              alt={selectedAlbum.name}
+              size={88}
+              rounded="lg"
+            />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-truncate text-xl font-bold text-ink">
+                {selectedAlbum.name}
+              </h2>
+              <p className="mt-1 text-sm text-ink-muted">{selectedAlbum.artist}</p>
+              <p className="mt-0.5 text-xs text-ink-subtle">
+                {selectedAlbum.songs.length} 首歌曲
+              </p>
+              <button
+                type="button"
+                onClick={() => handlePlayList(selectedAlbum.songs)}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-white shadow-glow pressable"
+              >
+                <Play className="h-4 w-4 fill-white" />
+                播放全部
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-0.5">
+            {selectedAlbum.songs.map((song, i) => (
+              <SongItem
+                key={song.id}
+                song={song}
+                index={i}
+                showIndex
+                onClick={(s) => playSong(s, selectedAlbum.songs)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 艺人详情视图
+  if (selectedArtist) {
+    // 该艺人的专辑分组
+    const artistAlbums = new Map<string, Song[]>();
+    for (const s of selectedArtist.songs) {
+      const name = s.album && s.album !== "未知" ? s.album : "未知专辑";
+      if (!artistAlbums.has(name)) artistAlbums.set(name, []);
+      artistAlbums.get(name)!.push(s);
+    }
+    return (
+      <div className="min-h-screen pb-28">
+        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3 pt-2">
+          <div className="flex items-center gap-2">
+            <IconButton ariaLabel="返回" onClick={() => setSelectedArtist(null)}>
+              <ArrowLeft className="h-5 w-5" />
+            </IconButton>
+            <h1 className="flex-1 text-truncate text-lg font-bold text-ink">
+              {selectedArtist.name}
+            </h1>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-[480px] px-4 pt-3">
+          {/* 艺人头部 */}
+          <div className="mb-4 flex flex-col items-center gap-3 rounded-2xl bg-white p-5 text-center shadow-card dark:bg-surface-card">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent/10 text-2xl font-bold text-accent">
+              {selectedArtist.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-ink">{selectedArtist.name}</h2>
+              <p className="mt-1 text-xs text-ink-muted">
+                {selectedArtist.songs.length} 首歌曲 · {selectedArtist.albumCount} 张专辑
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handlePlayList(selectedArtist.songs)}
+              className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-medium text-white shadow-glow pressable"
+            >
+              <Play className="h-4 w-4 fill-white" />
+              随机播放
+            </button>
+          </div>
+
+          {/* 专辑列表 */}
+          {artistAlbums.size > 1 && (
+            <div className="mb-4">
+              <h3 className="mb-2 px-1 text-sm font-bold text-ink">专辑</h3>
+              <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+                {Array.from(artistAlbums.entries()).map(([name, list]) => (
+                  <motion.button
+                    key={name}
+                    type="button"
+                    onClick={() =>
+                      setSelectedAlbum({
+                        key: `${name}__${selectedArtist.name}`,
+                        name,
+                        artist: selectedArtist.name,
+                        coverUrl: list[0]?.coverUrl,
+                        songs: list,
+                      })
+                    }
+                    whileTap={{ scale: 0.96 }}
+                    className="w-[120px] shrink-0 text-left"
+                  >
+                    <CoverArt
+                      src={list[0]?.coverUrl}
+                      alt={name}
+                      size={120}
+                      rounded="lg"
+                      className="!w-full !h-auto aspect-square shadow-cover"
+                    />
+                    <div className="mt-1.5 text-truncate text-xs font-semibold text-ink">
+                      {name}
+                    </div>
+                    <div className="text-[11px] text-ink-muted">
+                      {list.length} 首
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 全部歌曲 */}
+          <h3 className="mb-2 px-1 text-sm font-bold text-ink">全部歌曲</h3>
+          <div className="space-y-0.5">
+            {selectedArtist.songs.map((song, i) => (
+              <SongItem
+                key={song.id}
+                song={song}
+                index={i}
+                onClick={(s) => playSong(s, selectedArtist.songs)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pb-28">
       <AppBar title="音乐库" subtitle={`${songs.length} 首本地歌曲`} showSearch={false} />
 
       <div className="mx-auto max-w-[480px] px-4 pt-3">
         {/* Tab 切换 */}
-        <div className="mb-4 flex gap-1 rounded-full bg-black/5 p-1 dark:bg-white/8">
+        <div className="no-scrollbar mb-4 flex gap-1 overflow-x-auto rounded-full bg-black/5 p-1 dark:bg-white/8">
           {([
             { key: "all", label: "全部" },
             { key: "recent", label: "最近" },
+            { key: "albums", label: "专辑" },
+            { key: "artists", label: "艺人" },
             { key: "mine", label: "歌单" },
           ] as const).map((t) => (
             <button
@@ -172,7 +395,7 @@ export default function Playlists() {
               type="button"
               onClick={() => setTab(t.key)}
               className={cn(
-                "relative flex-1 rounded-full py-1.5 text-sm font-medium transition-colors",
+                "relative shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
                 tab === t.key
                   ? "text-white"
                   : "text-ink-muted hover:text-ink"
@@ -255,6 +478,108 @@ export default function Playlists() {
                         index={i}
                         onClick={(s) => playSong(s, recentSongs)}
                       />
+                    ))}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+
+          {tab === "albums" && (
+            <motion.div
+              key="albums"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              {albums.length === 0 ? (
+                <EmptyState
+                  icon={<Disc3 className="h-9 w-9" />}
+                  title="暂无专辑"
+                  description="导入带专辑标签的音乐后将自动分组。"
+                />
+              ) : (
+                <>
+                  <div className="mb-2 px-2 text-xs text-ink-muted">
+                    共 {albums.length} 张专辑
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {albums.map((album, i) => (
+                      <motion.button
+                        key={album.key}
+                        type="button"
+                        onClick={() => setSelectedAlbum(album)}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                        whileTap={{ scale: 0.97 }}
+                        className="flex flex-col gap-2 text-left"
+                      >
+                        <CoverArt
+                          src={album.coverUrl}
+                          alt={album.name}
+                          size={160}
+                          rounded="lg"
+                          className="!w-full !h-auto aspect-square shadow-cover"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-truncate text-sm font-semibold text-ink">
+                            {album.name}
+                          </div>
+                          <div className="text-truncate text-xs text-ink-muted">
+                            {album.artist}
+                          </div>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+
+          {tab === "artists" && (
+            <motion.div
+              key="artists"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              {artists.length === 0 ? (
+                <EmptyState
+                  icon={<User2 className="h-9 w-9" />}
+                  title="暂无艺人"
+                  description="导入带艺人标签的音乐后将自动分组。"
+                />
+              ) : (
+                <>
+                  <div className="mb-2 px-2 text-xs text-ink-muted">
+                    共 {artists.length} 位艺人
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {artists.map((artist, i) => (
+                      <motion.button
+                        key={artist.key}
+                        type="button"
+                        onClick={() => setSelectedArtist(artist)}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                        whileTap={{ scale: 0.97 }}
+                        className="flex flex-col items-center gap-2 rounded-2xl bg-white p-3 text-center shadow-card dark:bg-surface-card"
+                      >
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent/10 text-2xl font-bold text-accent">
+                          {artist.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 w-full">
+                          <div className="text-truncate text-sm font-semibold text-ink">
+                            {artist.name}
+                          </div>
+                          <div className="text-xs text-ink-muted">
+                            {artist.songs.length} 首 · {artist.albumCount} 张专辑
+                          </div>
+                        </div>
+                      </motion.button>
                     ))}
                   </div>
                 </>

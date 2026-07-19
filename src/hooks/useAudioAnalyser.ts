@@ -23,6 +23,11 @@ let sharedAnalyser: AnalyserNode | null = null;
 let sharedSource: MediaElementAudioSourceNode | null = null;
 let refCount = 0;
 
+/** 获取共享的 AnalyserNode（供可视化组件使用） */
+export function getSharedAnalyser(): AnalyserNode | null {
+  return sharedAnalyser;
+}
+
 function getAnalyser(audio: HTMLAudioElement): AnalyserNode | null {
   if (typeof window === "undefined") return null;
   try {
@@ -45,6 +50,10 @@ function getAnalyser(audio: HTMLAudioElement): AnalyserNode | null {
       sharedSource = sharedCtx.createMediaElementSource(audio);
       sharedSource.connect(sharedAnalyser);
       sharedAnalyser.connect(sharedCtx.destination);
+      // 暴露到 window 供 useEqualizer 复用
+      (window as unknown as { __ttanAudioCtx?: AudioContext }).__ttanAudioCtx = sharedCtx;
+      (window as unknown as { __ttanAudioSource?: MediaElementAudioSourceNode }).__ttanAudioSource = sharedSource;
+      (window as unknown as { __ttanAudioAnalyser?: AnalyserNode }).__ttanAudioAnalyser = sharedAnalyser;
     }
     return sharedAnalyser;
   } catch (err) {

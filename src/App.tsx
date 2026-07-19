@@ -11,9 +11,13 @@ import NowPlaying from "@/pages/NowPlaying";
 import Playlists from "@/pages/Playlists";
 import Search from "@/pages/Search";
 import Settings from "@/pages/Settings";
+import SongDetail from "@/pages/SongDetail";
 import About from "@/pages/About";
 import MiniPlayer from "@/components/MiniPlayer";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { useEqualizer } from "@/hooks/useEqualizer";
+import { useMediaSession } from "@/hooks/useMediaSession";
+import { useShakeToSwitch } from "@/hooks/useShakeToSwitch";
 import { useThemeStore } from "@/store/themeStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useLibraryStore } from "@/store/libraryStore";
@@ -53,6 +57,7 @@ function AnimatedRoutes() {
             <Route path="/" element={<Home />} />
             <Route path="/playing" element={<NowPlaying />} />
             <Route path="/playlists" element={<Playlists />} />
+            <Route path="/song/:id" element={<SongDetail />} />
             <Route path="/search" element={<Search />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/about" element={<About />} />
@@ -73,8 +78,14 @@ export default function App() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const loadPlaylists = useLibraryStore((s) => s.loadPlaylists);
   const loadRecents = useLibraryStore((s) => s.loadRecents);
+  const loadPlayCounts = useLibraryStore((s) => s.loadPlayCounts);
+  const outputDeviceId = useSettingsStore((s) => s.settings.outputDeviceId);
+  const volumeLimit = useSettingsStore((s) => s.settings.volumeLimit);
 
   useAudioPlayer(audioRef);
+  useEqualizer();
+  useMediaSession();
+  useShakeToSwitch();
 
   useEffect(() => {
     setAudioElement(audioRef.current);
@@ -83,8 +94,29 @@ export default function App() {
     void loadSettings();
     void loadPlaylists();
     void loadRecents();
+    void loadPlayCounts();
     return unbind;
-  }, [initTheme, bindSystemListener, loadSettings, loadPlaylists, loadRecents]);
+  }, [initTheme, bindSystemListener, loadSettings, loadPlaylists, loadRecents, loadPlayCounts]);
+
+  // 输出设备切换：通过 setSinkId 应用到 audio 元素
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const el = audio as HTMLAudioElement & {
+      setSinkId?: (id: string) => Promise<void>;
+    };
+    if (!el.setSinkId) return;
+    void el.setSinkId(outputDeviceId).catch(() => {});
+  }, [outputDeviceId]);
+
+  // 音量限制：将 audio 元素的最大音量限制在 0.85
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (volumeLimit && audio.volume > 0.85) {
+      audio.volume = 0.85;
+    }
+  }, [volumeLimit]);
 
   return (
     <Router>

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { PlayMode, Song } from "@/types";
-import { addRecent } from "@/utils/db";
+import { addRecent, incrementPlayCount } from "@/utils/db";
 
 interface PlayerState {
   // 当前播放
@@ -28,6 +28,14 @@ interface PlayerState {
   toggleMute: () => void;
   setPlayMode: (m: PlayMode) => void;
   cyclePlayMode: () => void;
+  /** 下一首播放：插入到当前曲目之后 */
+  insertNext: (song: Song) => void;
+  /** 添加到队列末尾 */
+  appendToQueue: (song: Song) => void;
+  /** 从队列移除某项 */
+  removeFromQueue: (index: number) => void;
+  /** 队列重排（拖动） */
+  reorderQueue: (from: number, to: number) => void;
 
   // 导航
   next: () => Song | null;
@@ -48,6 +56,18 @@ interface PlayerState {
     onPrev: () => void;
     onVolume: (v: number) => void;
   }>) => void;
+}
+
+// 记录播放次数（异步、防错）
+function trackPlayCount(song: Song) {
+  void addRecent(song.id).catch(() => {});
+  void incrementPlayCount(song.id)
+    .then((pc) => {
+      // 同步更新 library store 中的 playCount
+      const lib = (window as unknown as { __ttanLibSync?: (id: string, pc: { count: number; lastPlayedAt: number }) => void }).__ttanLibSync;
+      lib?.(song.id, pc);
+    })
+    .catch(() => {});
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -75,7 +95,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentTime: 0,
       duration: song.duration || 0,
     });
-    void addRecent(song.id).catch(() => {});
+    trackPlayCount(song);
     // 触发音频播放
     setTimeout(() => get()._onRequestPlay?.(), 0);
   },
@@ -91,8 +111,44 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentTime: 0,
       duration: song.duration || 0,
     });
-    void addRecent(song.id).catch(() => {});
+    trackPlayCount(song);
     setTimeout(() => get()._onRequestPlay?.(), 0);
+  },
+
+  insertNext: (song) => {
+    const { queue, currentIndex } = get();
+    // 去重：若已存在则移到当前位置后
+    const filtered = queue.filter((s) => s.id !== song.id);
+    const insertIdx = filtered.findIndex((s) => s === queue[currentIndex]);
+    const at = insertIdx >= 0 ? insertIdx + 1 : filtered.length;
+    const next = [...filtered.slice(0, at), song, ...filtered.slice(at)];
+    set({ queue: next, currentIndex: Math.min(currentIndex, next.length - 1) });
+  },
+
+  appendToQueue: (song) => {
+    const { queue } = get();
+    if (queue.some((s) => s.id === song.id)) return;
+    set({ queue: [...queue, song] });
+  },
+
+  removeFromQueue: (index) => {
+    const { queue, currentIndex } = get();
+    if (index < 0 || index >= queue.length) return;
+    const next = queue.filter((_, i) => i !== index);
+    const nextIdx = index < currentIndex ? currentIndex - 1 : index === currentIndex ? Math.min(currentIndex, next.length - 1) : currentIndex;
+    set({ queue: next, currentIndex: Math.max(0, nextIdx) });
+  },
+
+  reorderQueue: (from, to) => {
+    const { queue, currentIndex } = get();
+    if (from === to || from < 0 || to < 0 || from >= queue.length || to >= queue.length) return;
+    const next = [...queue];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    // 跟踪当前歌曲的新位置
+    const cur = queue[currentIndex];
+    const newIdx = next.findIndex((s) => s.id === cur?.id);
+    set({ queue: next, currentIndex: newIdx >= 0 ? newIdx : currentIndex });
   },
 
   togglePlay: () => {
@@ -155,7 +211,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentTime: 0,
       duration: song.duration || 0,
     });
-    void addRecent(song.id).catch(() => {});
+    trackPlayCount(song);
     setTimeout(() => get()._onRequestPlay?.(), 0);
     return song;
   },
@@ -173,7 +229,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentTime: 0,
       duration: song.duration || 0,
     });
-    void addRecent(song.id).catch(() => {});
+    trackPlayCount(song);
     setTimeout(() => get()._onRequestPlay?.(), 0);
     return song;
   },

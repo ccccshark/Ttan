@@ -1,30 +1,53 @@
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
-  Clock,
+  Database,
   Disc3,
+  Download,
+  Equal,
   Hand,
-  Info,
+  Headphones,
   Library,
   Mic2,
-  Moon,
   Music,
   Palette,
   Play,
-  RefreshCw,
+  RotateCcw,
   Sliders,
-  Type,
+  Trash2,
+  Upload,
 } from "lucide-react";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useThemeStore } from "@/store/themeStore";
+import { useLibraryStore } from "@/store/libraryStore";
 import {
   ACCENT_PRESETS,
+  EQ_PRESETS,
   type AccentPreset,
+  type CoverStyle,
+  type EqPreset,
   type ParticleDensity,
   type PlaybackBackground,
+  type SpectrumStyle,
 } from "@/types";
-import { Row, Segmented, SettingsCard, Slider, Switch } from "@/components/SettingsControls";
+import {
+  Row,
+  Segmented,
+  SettingsCard,
+  Slider,
+  Switch,
+} from "@/components/SettingsControls";
+import EqBands from "@/components/EqBands";
+import { useOutputDevices } from "@/hooks/useOutputDevices";
+import {
+  exportBackup,
+  importBackup,
+  clearRecents,
+  clearPlayCounts,
+  type BackupData,
+} from "@/utils/db";
 import { cn } from "@/lib/utils";
 
 export default function Settings() {
@@ -35,7 +58,18 @@ export default function Settings() {
   const themeMode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
 
-  // 主题模式变更：同步 themeStore 与 settingsStore
+  const { songs, clearLibrary, loadRecents, loadPlayCounts } = useLibraryStore();
+
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2400);
+  };
+
+  // 主题模式变更
   const handleThemeMode = (m: "light" | "dark" | "system") => {
     setMode(m);
     update({ themeMode: m });
@@ -43,6 +77,109 @@ export default function Settings() {
 
   const handleAccent = (preset: AccentPreset) => {
     update({ accentPreset: preset });
+  };
+
+  // EQ 预设应用
+  const handleEqPreset = (preset: EqPreset) => {
+    if (preset === "off") {
+      update({ eqEnabled: false, eqPreset: "off" });
+      return;
+    }
+    if (preset === "custom") {
+      update({ eqEnabled: true, eqPreset: "custom" });
+      return;
+    }
+    const def = EQ_PRESETS[preset];
+    update({
+      eqEnabled: true,
+      eqPreset: preset,
+      eqBands: [...def.bands],
+    });
+  };
+
+  const handleEqBandChange = (i: number, v: number) => {
+    const next = [...settings.eqBands];
+    next[i] = v;
+    // 用户手动调整后切换为 custom
+    update({ eqBands: next, eqPreset: "custom" });
+  };
+
+  const handleEqToggle = (enabled: boolean) => {
+    update({ eqEnabled: enabled });
+  };
+
+  // 输出设备
+  const outputDevices = useOutputDevices();
+
+  // 备份与恢复
+  const handleExport = async () => {
+    setBusy(true);
+    try {
+      const data = await exportBackup();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const ts = new Date(data.exportedAt).toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      a.download = `ttan-backup-${ts}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`已导出 ${data.songs.length} 首歌曲`);
+    } catch (err) {
+      console.error(err);
+      showToast("导出失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as BackupData;
+      if (!data || typeof data !== "object" || !Array.isArray(data.songs)) {
+        showToast("备份文件格式不正确");
+        return;
+      }
+      await importBackup(data);
+      await loadRecents();
+      await loadPlayCounts();
+      showToast(`已导入 ${data.songs.length} 首歌曲，重启后生效`);
+    } catch (err) {
+      console.error(err);
+      showToast("导入失败");
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleClearRecents = async () => {
+    if (!confirm("确定清除最近播放记录吗？")) return;
+    await clearRecents();
+    await loadRecents();
+    showToast("已清除最近播放");
+  };
+
+  const handleClearPlayCounts = async () => {
+    if (!confirm("确定清除所有播放次数统计吗？此操作不可撤销。")) return;
+    await clearPlayCounts();
+    await loadPlayCounts();
+    showToast("已清除播放统计");
+  };
+
+  const handleClearLibrary = () => {
+    if (!confirm("确定清空整个音乐库吗？此操作不可撤销，请先备份！")) return;
+    if (!confirm("再次确认：清空后所有歌曲、封面、歌词缓存都会被删除。")) return;
+    clearLibrary();
+    showToast("已清空音乐库");
   };
 
   return (
@@ -65,7 +202,6 @@ export default function Settings() {
       <div className="mx-auto max-w-[480px] space-y-4 px-4 py-4">
         {/* ========== 外观与主题 ========== */}
         <SettingsCard title="外观与主题" icon={<Palette className="h-3.5 w-3.5" />}>
-          {/* 主题模式 */}
           <Row title="主题模式" subtitle="浅色 / 深色 / 跟随系统">
             <Segmented
               value={themeMode}
@@ -78,7 +214,6 @@ export default function Settings() {
             />
           </Row>
 
-          {/* AMOLED 纯黑 */}
           <Row
             title="AMOLED 纯黑"
             subtitle="深色模式下使用纯黑背景，省电"
@@ -90,7 +225,6 @@ export default function Settings() {
             }
           />
 
-          {/* 强调色 */}
           <Row title="强调色" subtitle="点击选择主题色">
             <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
               {(Object.keys(ACCENT_PRESETS) as Array<Exclude<AccentPreset, "custom">>).map(
@@ -120,7 +254,6 @@ export default function Settings() {
                   );
                 }
               )}
-              {/* 自定义颜色选择器 */}
               <label
                 className={cn(
                   "relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-pink-500 via-yellow-500 to-cyan-500 text-xs font-bold text-white",
@@ -145,7 +278,6 @@ export default function Settings() {
             </div>
           </Row>
 
-          {/* 动态取色 */}
           <Row
             title="动态取色"
             subtitle="从当前播放封面提取主色作为强调色"
@@ -157,7 +289,6 @@ export default function Settings() {
             }
           />
 
-          {/* 字体大小 */}
           <Row title="字体大小" subtitle="影响全局 UI 字号">
             <Slider
               value={settings.fontScale}
@@ -208,6 +339,152 @@ export default function Settings() {
               ]}
             />
           </Row>
+
+          <Row title="封面样式" subtitle="正在播放页的封面展示形式">
+            <Segmented
+              value={settings.coverStyle}
+              onChange={(v) => update({ coverStyle: v as CoverStyle })}
+              options={[
+                { label: "方形", value: "square" },
+                { label: "黑胶", value: "vinyl" },
+              ]}
+            />
+          </Row>
+
+          <Row title="频谱可视化" subtitle="播放页底部频谱条带">
+            <Segmented
+              value={settings.spectrumStyle}
+              onChange={(v) => update({ spectrumStyle: v as SpectrumStyle })}
+              options={[
+                { label: "关", value: "off" },
+                { label: "柱状", value: "bars" },
+                { label: "波形", value: "wave" },
+                { label: "镜像", value: "mirror" },
+              ]}
+            />
+          </Row>
+        </SettingsCard>
+
+        {/* ========== 音效与均衡器 ========== */}
+        <SettingsCard title="音效与均衡器" icon={<Equal className="h-3.5 w-3.5" />}>
+          <Row
+            title="启用均衡器"
+            subtitle="十段图形 EQ，可调节频段增益"
+            trailing={
+              <Switch
+                checked={settings.eqEnabled}
+                onChange={handleEqToggle}
+              />
+            }
+          />
+
+          {settings.eqEnabled && (
+            <>
+              <div className="px-4 pb-2 pt-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-ink-muted">
+                  预设
+                </div>
+                <div className="no-scrollbar -mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                  {(["off", "flat", "bass-boost", "treble-boost", "vocal", "pop", "rock", "jazz", "classical", "electronic", "custom"] as EqPreset[]).map(
+                    (p) => {
+                      const label =
+                        p === "off" ? "关闭" :
+                        p === "custom" ? "自定义" :
+                        EQ_PRESETS[p as Exclude<EqPreset, "off" | "custom">].name;
+                      const active = settings.eqPreset === p;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => handleEqPreset(p)}
+                          className={cn(
+                            "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                            active
+                              ? "bg-accent text-white shadow-sm"
+                              : "bg-black/[0.05] text-ink-muted hover:bg-black/[0.08] dark:bg-white/[0.08] dark:hover:bg-white/[0.12]"
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+
+              <EqBands bands={settings.eqBands} onChange={handleEqBandChange} />
+
+              <Row title="低音增强" subtitle="独立 lowshelf，120 Hz 以下增强">
+                <Slider
+                  value={settings.bassBoost}
+                  min={0}
+                  max={12}
+                  step={1}
+                  onChange={(v) => update({ bassBoost: v })}
+                  format={(v) => (v === 0 ? "关" : `+${v} dB`)}
+                />
+              </Row>
+
+              <Row title="立体声扩展" subtitle="虚拟拓宽声场（实验性）">
+                <Slider
+                  value={settings.virtualizer}
+                  min={0}
+                  max={100}
+                  step={5}
+                  onChange={(v) => update({ virtualizer: v })}
+                  format={(v) => `${v}%`}
+                />
+              </Row>
+            </>
+          )}
+
+          <Row
+            title="音量限制保护"
+            subtitle="限制最大音量 85%，避免听力损伤"
+            trailing={
+              <Switch
+                checked={settings.volumeLimit}
+                onChange={(v) => update({ volumeLimit: v })}
+              />
+            }
+          />
+        </SettingsCard>
+
+        {/* ========== 输出设备 ========== */}
+        <SettingsCard title="输出设备" icon={<Headphones className="h-3.5 w-3.5" />}>
+          <Row
+            title="输出设备"
+            subtitle={
+              outputDevices.devices.length === 0
+                ? "未检测到可用音频输出设备"
+                : settings.outputDeviceId === ""
+                  ? `默认（${outputDevices.devices[0]?.label ?? "扬声器"}）`
+                  : outputDevices.devices.find((d) => d.deviceId === settings.outputDeviceId)?.label ?? "默认"
+            }
+          >
+            <select
+              value={settings.outputDeviceId}
+              onChange={(e) => update({ outputDeviceId: e.target.value })}
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-[180px] truncate rounded-lg bg-black/[0.05] px-2.5 py-1.5 text-xs font-medium text-ink dark:bg-white/[0.08] dark:text-white"
+            >
+              <option value="">默认设备</option>
+              {outputDevices.devices.map((d) => (
+                <option key={d.deviceId} value={d.deviceId}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </Row>
+
+          {!outputDevices.permissionGranted && (
+            <Row
+              title="授权读取设备列表"
+              subtitle="显示完整设备名称需要麦克风权限"
+              onClick={() => void outputDevices.requestPermission()}
+              chevron
+            />
+          )}
         </SettingsCard>
 
         {/* ========== 歌词 ========== */}
@@ -276,9 +553,7 @@ export default function Settings() {
               max={10000}
               step={100}
               onChange={(v) => update({ lyricsOffsetMs: v })}
-              format={(v) =>
-                v === 0 ? "0ms" : v > 0 ? `+${v}ms` : `${v}ms`
-              }
+              format={(v) => (v === 0 ? "0ms" : v > 0 ? `+${v}ms` : `${v}ms`)}
             />
           </Row>
         </SettingsCard>
@@ -402,9 +677,16 @@ export default function Settings() {
               />
             }
           />
+
+          <Row
+            title="音乐库容量"
+            subtitle={`共 ${songs.length} 首歌曲`}
+            onClick={() => navigate("/playlists")}
+            chevron
+          />
         </SettingsCard>
 
-        {/* ========== 手势 ========== */}
+        {/* ========== 手势与交互 ========== */}
         <SettingsCard title="手势与交互" icon={<Hand className="h-3.5 w-3.5" />}>
           <Row
             title="滑动切歌"
@@ -417,6 +699,16 @@ export default function Settings() {
             }
           />
           <Row
+            title="双击暂停"
+            subtitle="在播放页双击封面切换播放暂停"
+            trailing={
+              <Switch
+                checked={settings.doubleTapToPause}
+                onChange={(v) => update({ doubleTapToPause: v })}
+              />
+            }
+          />
+          <Row
             title="长按快进"
             subtitle="长按上一首/下一首按钮快进"
             trailing={
@@ -425,6 +717,72 @@ export default function Settings() {
                 onChange={(v) => update({ longPressSeek: v })}
               />
             }
+          />
+          <Row
+            title="摇一摇切歌"
+            subtitle="用力摇晃设备切到下一首"
+            trailing={
+              <Switch
+                checked={settings.shakeToSwitch}
+                onChange={(v) => update({ shakeToSwitch: v })}
+              />
+            }
+          />
+          <Row
+            title="歌词分享卡片"
+            subtitle="在歌词页生成可分享的歌词卡片"
+            trailing={
+              <Switch
+                checked={settings.shareLyricCard}
+                onChange={(v) => update({ shareLyricCard: v })}
+              />
+            }
+          />
+        </SettingsCard>
+
+        {/* ========== 数据与备份 ========== */}
+        <SettingsCard title="数据与备份" icon={<Database className="h-3.5 w-3.5" />}>
+          <Row
+            title="导出备份"
+            subtitle="将歌曲元数据、歌单、设置导出为 JSON"
+            onClick={busy ? undefined : handleExport}
+            chevron
+            trailing={busy ? <RotateCcw className="h-4 w-4 animate-spin text-ink-muted" /> : <Download className="h-4 w-4 text-ink-subtle" />}
+          />
+          <Row
+            title="导入备份"
+            subtitle="从 JSON 备份文件恢复数据"
+            onClick={busy ? undefined : handleImportClick}
+            chevron
+            trailing={<Upload className="h-4 w-4 text-ink-subtle" />}
+          />
+          <Row
+            title="清除最近播放"
+            subtitle="清空最近播放记录"
+            onClick={handleClearRecents}
+            chevron
+            trailing={<Trash2 className="h-4 w-4 text-ink-subtle" />}
+          />
+          <Row
+            title="清除播放统计"
+            subtitle="重置所有歌曲的播放次数"
+            onClick={handleClearPlayCounts}
+            chevron
+            trailing={<Trash2 className="h-4 w-4 text-ink-subtle" />}
+          />
+          <Row
+            title="清空音乐库"
+            subtitle="删除所有歌曲与缓存（不可撤销）"
+            onClick={handleClearLibrary}
+            chevron
+            trailing={<Trash2 className="h-4 w-4 text-rose-500" />}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleImportFile}
+            className="hidden"
           />
         </SettingsCard>
 
@@ -467,11 +825,20 @@ export default function Settings() {
           />
 
           <Row
+            title="系统媒体控件"
+            subtitle="锁屏 / 蓝牙 / 车机控制（始终开启）"
+            trailing={
+              <Switch checked onChange={() => {}} />
+            }
+          />
+
+          <Row
             title="重置设置"
             subtitle="恢复所有设置到默认值"
             onClick={() => {
               if (confirm("确定要重置所有设置到默认值吗？")) {
                 reset();
+                showToast("已重置为默认设置");
               }
             }}
             chevron
@@ -493,6 +860,20 @@ export default function Settings() {
           所有数据存储于本地，不上传任何信息
         </p>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
+          className="safe-bottom pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center"
+        >
+          <div className="pointer-events-auto rounded-full bg-ink/90 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur-md dark:bg-white/90 dark:text-ink">
+            {toast}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

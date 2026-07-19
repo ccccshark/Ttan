@@ -1,9 +1,10 @@
 import { create } from "zustand";
-import type { Playlist, Song } from "@/types";
+import type { Playlist, PlayCount, Song } from "@/types";
 import { filesToSongs } from "@/utils/metadata";
 import {
   deletePlaylist as dbDeletePlaylist,
   getAllPlaylists,
+  getAllPlayCounts,
   getRecents,
   savePlaylist,
 } from "@/utils/db";
@@ -15,12 +16,17 @@ interface LibraryState {
   songs: Song[];
   playlists: Playlist[];
   recentIds: string[];
+  playCounts: Record<string, PlayCount>;
   importState: ImportState;
   importProgress: { done: number; total: number };
 
   addFiles: (files: File[]) => Promise<void>;
   removeSong: (id: string) => void;
   clearLibrary: () => void;
+  toggleFavorite: (id: string) => void;
+  toggleHidden: (id: string) => void;
+  /** 同步播放次数到内存（由 playerStore 调用） */
+  syncPlayCount: (songId: string, pc: PlayCount) => void;
 
   loadPlaylists: () => Promise<void>;
   createPlaylist: (name: string, songIds?: string[]) => Promise<Playlist>;
@@ -30,12 +36,14 @@ interface LibraryState {
   removeFromPlaylist: (id: string, songId: string) => Promise<void>;
 
   loadRecents: () => Promise<void>;
+  loadPlayCounts: () => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   songs: [],
   playlists: [],
   recentIds: [],
+  playCounts: {},
   importState: "idle",
   importProgress: { done: 0, total: 0 },
 
@@ -65,6 +73,30 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     set({ songs: get().songs.filter((s) => s.id !== id) }),
 
   clearLibrary: () => set({ songs: [] }),
+
+  toggleFavorite: (id) =>
+    set({
+      songs: get().songs.map((s) =>
+        s.id === id ? { ...s, favorite: !s.favorite } : s
+      ),
+    }),
+
+  toggleHidden: (id) =>
+    set({
+      songs: get().songs.map((s) =>
+        s.id === id ? { ...s, hidden: !s.hidden } : s
+      ),
+    }),
+
+  syncPlayCount: (songId, pc) =>
+    set({
+      playCounts: { ...get().playCounts, [songId]: pc },
+      songs: get().songs.map((s) =>
+        s.id === songId
+          ? { ...s, playCount: pc.count, lastPlayedAt: pc.lastPlayedAt }
+          : s
+      ),
+    }),
 
   loadPlaylists: async () => {
     try {
@@ -141,4 +173,26 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       // 忽略
     }
   },
+
+  loadPlayCounts: async () => {
+    try {
+      const list = await getAllPlayCounts();
+      const map: Record<string, PlayCount> = {};
+      for (const pc of list) map[pc.songId] = pc;
+      // 同步到 songs 内存
+      const songs = get().songs.map((s) =>
+        map[s.id]
+          ? { ...s, playCount: map[s.id].count, lastPlayedAt: map[s.id].lastPlayedAt }
+          : s
+      );
+      set({ playCounts: map, songs });
+    } catch {
+      // 忽略
+    }
+  },
 }));
+
+// 注册全局同步钩子：playerStore 切歌时调用
+(window as unknown as { __ttanLibSync?: (id: string, pc: PlayCount) => void }).__ttanLibSync = (id, pc) => {
+  useLibraryStore.getState().syncPlayCount(id, pc);
+};
