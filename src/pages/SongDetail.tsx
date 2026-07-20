@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
+import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
 import IconButton from "@/components/IconButton";
 import CoverArt from "@/components/CoverArt";
 import EmptyState from "@/components/EmptyState";
@@ -37,6 +38,7 @@ export default function SongDetail() {
 
   const playSong = usePlayerStore((s) => s.playSong);
   const insertNext = usePlayerStore((s) => s.insertNext);
+  const statusBarHeight = useStatusBarHeight();
   const appendToQueue = usePlayerStore((s) => s.appendToQueue);
 
   const song = songs.find((s) => s.id === id);
@@ -44,7 +46,7 @@ export default function SongDetail() {
   if (!song) {
     return (
       <div className="min-h-screen pb-28">
-        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3">
+        <div className="glass glass-light sticky top-0 z-30 px-4 pb-3" style={{ paddingTop: `${statusBarHeight}px` }}>
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />

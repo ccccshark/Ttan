@@ -17,6 +17,7 @@
     "@capacitor/cli": "^8.4.2",
     "@capacitor/core": "^8.4.2",
     "@capacitor/status-bar": "^8.0.3",
+    "@emotion/is-prop-valid": "^1.4.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
     "idb": "^8.0.3",

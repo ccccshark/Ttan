@@ -184,3 +184,46 @@ export function Slider({
     </div>
   );
 }
+
+// ============ 颜色选择器 ============
+export function ColorPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+      <div className="relative">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="sr-only"
+          id="color-picker"
+        />
+        <label
+          htmlFor="color-picker"
+          className="flex h-8 w-8 cursor-pointer rounded-lg shadow-md ring-2 ring-black/10"
+          style={{ backgroundColor: value }}
+        />
+        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-ink-muted">
+          {value}
+        </div>
+      </div>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+            onChange(v);
+          }
+        }}
+        className="w-24 rounded-lg border border-black/10 bg-transparent px-2 py-1 text-xs font-mono text-ink outline-none focus:border-accent dark:border-white/10"
+        placeholder="#000000"
+      />
+    </div>
+  );
+}

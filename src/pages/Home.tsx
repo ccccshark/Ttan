@@ -15,6 +15,7 @@ import {
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
 import ImportButton from "@/components/ImportButton";
 import SongItem from "@/components/SongItem";
 import SongSheet from "@/components/SongSheet";
@@ -40,6 +41,7 @@ export default function Home() {
   const playAt = usePlayerStore((s) => s.playAt);
   const currentSong = usePlayerStore((s) => s.currentSong);
   const settings = useSettingsStore((s) => s.settings);
+  const statusBarHeight = useStatusBarHeight();
   const [sheetSong, setSheetSong] = useState<Song | null>(null);
   const [showAll, setShowAll] = useState(false);
 
@@ -148,7 +150,7 @@ export default function Home() {
   return (
     <div className="relative min-h-screen pb-36">
       {/* 顶部问候 + 数据 */}
-      <header className="safe-top px-5 pb-2 pt-2">
+      <header className="px-5 pb-2" style={{ paddingTop: `${statusBarHeight}px` }}>
         <div className="flex items-start justify-between">
           <motion.div
             initial={{ opacity: 0, y: -6 }}

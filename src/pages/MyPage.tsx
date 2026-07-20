@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,
   Heart,
@@ -9,9 +9,11 @@ import {
   Plus,
   Settings as SettingsIcon,
   Sliders,
+  X,
 } from "lucide-react";
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
+import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
 import CoverArt from "@/components/CoverArt";
 import EmptyState from "@/components/EmptyState";
 import { formatCount } from "@/utils/format";
@@ -27,9 +29,13 @@ export default function MyPage() {
   const loadPlaylists = useLibraryStore((s) => s.loadPlaylists);
   const loadRecents = useLibraryStore((s) => s.loadRecents);
   const createPlaylist = useLibraryStore((s) => s.createPlaylist);
+  const statusBarHeight = useStatusBarHeight();
 
   const setQueue = usePlayerStore((s) => s.setQueue);
   const playAt = usePlayerStore((s) => s.playAt);
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState("");
 
   useEffect(() => {
     void loadPlaylists();
@@ -55,14 +61,15 @@ export default function MyPage() {
   };
 
   const handleCreatePlaylist = async () => {
-    const name = prompt("输入歌单名称", `歌单 ${playlists.length + 1}`);
-    if (!name) return;
+    const name = newName.trim() || `歌单 ${playlists.length + 1}`;
     await createPlaylist(name);
+    setNewName("");
+    setShowCreate(false);
   };
 
   return (
     <div className="min-h-screen pb-36">
-      <header className="safe-top sticky top-0 z-30 border-b border-black/[0.04] bg-white/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#0a0c14]/80">
+      <header className="sticky top-0 z-30 border-b border-black/[0.04] bg-white/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#0a0c14]/80" style={{ paddingTop: `${statusBarHeight}px` }}>
         <div className="mx-auto flex max-w-[480px] items-center justify-between px-4 py-3">
           <h1 className="text-xl font-bold text-ink dark:text-white">我的</h1>
           <button
@@ -100,7 +107,12 @@ export default function MyPage() {
         >
           <button
             type="button"
-            onClick={handlePlayFavorites}
+            onClick={() => {
+              if (favorites.length > 0) {
+                handlePlayFavorites();
+                navigate("/playing");
+              }
+            }}
             disabled={favorites.length === 0}
             className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-black/[0.02] disabled:opacity-60 dark:hover:bg-white/[0.03]"
           >
@@ -129,7 +141,7 @@ export default function MyPage() {
             <h2 className="text-base font-bold text-ink dark:text-white">歌单</h2>
             <button
               type="button"
-              onClick={handleCreatePlaylist}
+              onClick={() => setShowCreate(true)}
               className="flex items-center gap-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -145,17 +157,17 @@ export default function MyPage() {
             />
           ) : (
             <div className="space-y-2">
-              {playlists.map((p, i) => (
-                <PlaylistRow
-                  key={p.id}
-                  name={p.name}
-                  count={p.songIds.length}
-                  coverSong={songs.find((s) => s.id === p.songIds[0])}
-                  index={i}
-                  onClick={() => navigate("/playlists")}
-                />
-              ))}
-            </div>
+            {playlists.map((p, i) => (
+              <PlaylistRow
+                key={p.id}
+                name={p.name}
+                count={p.songIds.length}
+                coverSong={songs.find((s) => s.id === p.songIds[0])}
+                index={i}
+                onClick={() => navigate(`/playlists?tab=mine&playlistId=${p.id}`)}
+              />
+            ))}
+          </div>
           )}
         </motion.section>
 
@@ -180,6 +192,81 @@ export default function MyPage() {
           />
         </motion.section>
       </div>
+
+      {/* 新建歌单弹窗 */}
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6"
+            onClick={() => setShowCreate(false)}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+            <motion.div
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-[#1a1d2e] sm:rounded-3xl"
+            >
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/10 dark:bg-white/10 sm:hidden" />
+              
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-accent/20 to-accent/5">
+                  <ListMusic className="h-6 w-6 text-accent" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-ink dark:text-white">新建歌单</h3>
+                  <p className="text-xs text-ink-muted">创建你的精选合集</p>
+                </div>
+              </div>
+              
+              <div className="relative mb-5">
+                <input
+                  type="text"
+                  autoFocus
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="输入歌单名称"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleCreatePlaylist();
+                  }}
+                  className="w-full rounded-2xl border border-black/10 bg-black/[0.03] px-4 py-3.5 text-base font-medium text-ink outline-none transition-colors focus:border-accent focus:bg-accent/5 dark:border-white/10 dark:bg-white/[0.05] dark:text-white dark:focus:bg-accent/10"
+                />
+                {newName.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setNewName("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full bg-black/10 text-ink-muted hover:bg-black/20 dark:bg-white/10 dark:text-white/50"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(false)}
+                  className="flex-1 rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold text-ink-muted transition-colors hover:bg-black/[0.1] dark:bg-white/[0.08] dark:text-white/60 dark:hover:bg-white/[0.12]"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleCreatePlaylist()}
+                  className="flex-1 rounded-2xl bg-accent py-3 text-sm font-semibold text-white shadow-lg shadow-accent/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  创建歌单
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

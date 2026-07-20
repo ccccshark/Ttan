@@ -19,6 +19,7 @@ import { usePlayerStore } from "@/store/playerStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useLibraryStore } from "@/store/libraryStore";
 import { useAudioAnalyser } from "@/hooks/useAudioAnalyser";
+import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
 import ParticleField from "@/components/ParticleField";
 import FlowingLight from "@/components/FlowingLight";
 import LyricsStage from "@/components/LyricsStage";
@@ -62,6 +63,7 @@ export default function NowPlaying() {
   const analysis = useAudioAnalyser(isPlaying && !!currentSong);
   const settings = useSettingsStore((s) => s.settings);
   const toggleFavorite = useLibraryStore((s) => s.toggleFavorite);
+  const statusBarHeight = useStatusBarHeight();
 
   // 动态取色：从封面提取主色注入 CSS 变量
   useEffect(() => {
@@ -266,8 +268,27 @@ export default function NowPlaying() {
         />
       )}
 
+      {/* 自定义图片背景 */}
+      {settings.playbackBackground === "customImage" && settings.customBackgroundImage && (
+        <>
+          <div
+            className="absolute inset-0 -z-30"
+            style={{
+              backgroundImage: `url(${settings.customBackgroundImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              filter: "brightness(0.6)",
+            }}
+          />
+          <div className="absolute inset-0 -z-20 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
+        </>
+      )}
+
       {/* === 顶部极简栏 === */}
-      <div className="safe-top relative flex items-center justify-between px-4">
+      <div
+        className="relative flex items-center justify-between px-4"
+        style={{ paddingTop: `${statusBarHeight}px` }}
+      >
         <motion.button
           type="button"
           onClick={() => navigate(-1)}

@@ -10,9 +10,11 @@ import {
   Plus,
   Trash2,
   User2,
+  X,
 } from "lucide-react";
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
+import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
 import AppBar from "@/components/AppBar";
 import SongItem from "@/components/SongItem";
 import EmptyState from "@/components/EmptyState";
@@ -41,7 +43,10 @@ interface ArtistGroup {
 
 export default function Playlists() {
   const [params, setParams] = useSearchParams();
-  const tab = (params.get("tab") as Tab) ?? "all";
+  const playlistId = params.get("playlistId");
+  
+  const forcedTab = playlistId ? "mine" : undefined;
+  const tab = forcedTab ?? (params.get("tab") as Tab) ?? "all";
 
   const songs = useLibraryStore((s) => s.songs);
   const playlists = useLibraryStore((s) => s.playlists);
@@ -60,11 +65,21 @@ export default function Playlists() {
   const [selectedArtist, setSelectedArtist] = useState<ArtistGroup | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
+  const statusBarHeight = useStatusBarHeight();
 
   useEffect(() => {
     void loadPlaylists();
     void loadRecents();
   }, [loadPlaylists, loadRecents]);
+
+  useEffect(() => {
+    if (playlistId && playlists.length > 0) {
+      const playlist = playlists.find((p) => p.id === playlistId);
+      if (playlist) {
+        setSelectedPlaylist(playlist);
+      }
+    }
+  }, [playlistId, playlists]);
 
   const recentSongs = useMemo(() => {
     const map = new Map(songs.map((s) => [s.id, s]));
@@ -122,8 +137,11 @@ export default function Playlists() {
   }, [songs]);
 
   const setTab = (t: Tab) => {
-    params.set("tab", t);
-    setParams(params, { replace: true });
+    const nextParams = new URLSearchParams(params);
+    nextParams.set("tab", t);
+    nextParams.delete("playlistId");
+    setParams(nextParams, { replace: true });
+    setSelectedPlaylist(null);
   };
 
   const handlePlayList = (list: Song[]) => {
@@ -139,6 +157,15 @@ export default function Playlists() {
     setShowCreate(false);
   };
 
+  const handleBackFromPlaylist = () => {
+    if (playlistId) {
+      const nextParams = new URLSearchParams(params);
+      nextParams.delete("playlistId");
+      setParams(nextParams, { replace: true });
+    }
+    setSelectedPlaylist(null);
+  };
+
   // 歌单详情视图
   if (selectedPlaylist) {
     const map = new Map(songs.map((s) => [s.id, s]));
@@ -148,9 +175,9 @@ export default function Playlists() {
 
     return (
       <div className="min-h-screen pb-28">
-        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3">
+        <div className="glass glass-light sticky top-0 z-30 px-4 pb-3" style={{ paddingTop: `${statusBarHeight}px` }}>
           <div className="flex items-center gap-2">
-            <IconButton ariaLabel="返回" onClick={() => setSelectedPlaylist(null)}>
+            <IconButton ariaLabel="返回" onClick={handleBackFromPlaylist}>
               <ArrowLeft className="h-5 w-5" />
             </IconButton>
             <h1 className="flex-1 text-truncate text-lg font-bold text-ink">
@@ -221,7 +248,7 @@ export default function Playlists() {
   if (selectedAlbum) {
     return (
       <div className="min-h-screen pb-28">
-        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3">
+        <div className="glass glass-light sticky top-0 z-30 px-4 pb-3" style={{ paddingTop: `${statusBarHeight}px` }}>
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={() => setSelectedAlbum(null)}>
               <ArrowLeft className="h-5 w-5" />
@@ -286,7 +313,7 @@ export default function Playlists() {
     }
     return (
       <div className="min-h-screen pb-28">
-        <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3">
+        <div className="glass glass-light sticky top-0 z-30 px-4 pb-3" style={{ paddingTop: `${statusBarHeight}px` }}>
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={() => setSelectedArtist(null)}>
               <ArrowLeft className="h-5 w-5" />
@@ -661,43 +688,67 @@ export default function Playlists() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-6"
+            className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6"
             onClick={() => setShowCreate(false)}
           >
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-surface-card"
+              className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-[#1a1d2e] sm:rounded-3xl"
             >
-              <h3 className="mb-3 text-lg font-bold text-ink">新建歌单</h3>
-              <input
-                type="text"
-                autoFocus
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="输入歌单名称"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void handleCreate();
-                }}
-                className="w-full rounded-xl border border-black/10 bg-surface-subtle px-3 py-2.5 text-sm text-ink outline-none focus:border-accent dark:border-white/10 dark:bg-white/5"
-              />
-              <div className="mt-4 flex justify-end gap-2">
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/10 dark:bg-white/10 sm:hidden" />
+              
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-accent/20 to-accent/5">
+                  <ListMusic className="h-6 w-6 text-accent" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-ink dark:text-white">新建歌单</h3>
+                  <p className="text-xs text-ink-muted">创建你的精选合集</p>
+                </div>
+              </div>
+              
+              <div className="relative mb-5">
+                <input
+                  type="text"
+                  autoFocus
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="输入歌单名称"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleCreate();
+                  }}
+                  className="w-full rounded-2xl border border-black/10 bg-black/[0.03] px-4 py-3.5 text-base font-medium text-ink outline-none transition-colors focus:border-accent focus:bg-accent/5 dark:border-white/10 dark:bg-white/[0.05] dark:text-white dark:focus:bg-accent/10"
+                />
+                {newName.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setNewName("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full bg-black/10 text-ink-muted hover:bg-black/20 dark:bg-white/10 dark:text-white/50"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
-                  className="rounded-full px-4 py-2 text-sm font-medium text-ink-muted hover:bg-black/5 dark:hover:bg-white/10"
+                  className="flex-1 rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold text-ink-muted transition-colors hover:bg-black/[0.1] dark:bg-white/[0.08] dark:text-white/60 dark:hover:bg-white/[0.12]"
                 >
                   取消
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleCreate()}
-                  className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-white shadow-glow pressable"
+                  className="flex-1 rounded-2xl bg-accent py-3 text-sm font-semibold text-white shadow-lg shadow-accent/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  创建
+                  创建歌单
                 </button>
               </div>
             </motion.div>

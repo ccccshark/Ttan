@@ -1,15 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AudioAnalysis } from "@/hooks/useAudioAnalyser";
 
 interface Particle {
   x: number;
   y: number;
-  z: number; // 深度 0-1，越大越近
+  z: number;
   size: number;
   baseAlpha: number;
-  twinkle: number; // 闪烁相位
+  twinkle: number;
   twinkleSpeed: number;
-  hue: number; // 颜色色调（蓝青色系）
+  hue: number;
 }
 
 interface ShootingStar {
@@ -28,15 +28,8 @@ interface ParticleFieldProps {
   className?: string;
 }
 
-// 星河粒子背景：模拟 Mineradio 银河视觉
-// - 多层深度星点缓慢漂移
-// - 节拍触发"星爆"效果
-// - 音量驱动整体亮度与漂移速度
-// - 偶发流星
-
 const STAR_COUNT = 220;
 
-// 模块级流星生成函数（被节拍 effect 与渲染 effect 共用）
 function spawnShootingStar(arr: ShootingStar[]) {
   const fromLeft = Math.random() > 0.5;
   const startX = fromLeft ? -0.1 : 1.1;
@@ -63,22 +56,20 @@ export default function ParticleField({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const shootingRef = useRef<ShootingStar[]>([]);
-  const beatPulseRef = useRef(0); // 节拍脉冲衰减值
-  const flashRef = useRef(0); // 全屏白光衰减
+  const beatPulseRef = useRef(0);
+  const flashRef = useRef(0);
   const analysisRef = useRef(analysis);
   const playingRef = useRef(isPlaying);
   const rafRef = useRef<number | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
-  // 同步最新 props 到 ref，避免每帧重建循环
   useEffect(() => {
     analysisRef.current = analysis;
     if (analysis.beat) {
       beatPulseRef.current = 1;
-      // 强节拍触发白光闪烁（高频能量高时）
       if (analysis.bass > 0.55) {
         flashRef.current = Math.min(0.25, analysis.bass * 0.35);
       }
-      // 概率性触发流星
       if (Math.random() < 0.18) {
         spawnShootingStar(shootingRef.current);
       }
@@ -100,17 +91,20 @@ export default function ParticleField({
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     const resize = () => {
-      width = canvas.clientWidth;
-      height = canvas.clientHeight;
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      if (width > 0 && height > 0) {
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        initParticles();
+        setInitialized(true);
+      }
     };
 
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
-
     const initParticles = () => {
+      if (particlesRef.current.length > 0) return;
       const arr: Particle[] = [];
       for (let i = 0; i < STAR_COUNT; i++) {
         arr.push({
@@ -127,18 +121,18 @@ export default function ParticleField({
       particlesRef.current = arr;
     };
 
-    setTimeout(() => {
-      resize();
-      initParticles();
-    }, 100);
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
 
-    let frame = 0;
     const render = () => {
-      frame += 1;
+      if (width === 0 || height === 0) {
+        rafRef.current = requestAnimationFrame(render);
+        return;
+      }
+
       const a = analysisRef.current;
       const playing = playingRef.current;
 
-      // 背景渐变（深空）
       const bgGrad = ctx.createRadialGradient(
         width / 2,
         height * 0.4,
@@ -154,7 +148,6 @@ export default function ParticleField({
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // 中心星云光晕（随低频脉动）
       const nebulaRadius =
         Math.min(width, height) * (0.35 + a.bass * 0.25 + beatPulseRef.current * 0.15);
       const nebulaGrad = ctx.createRadialGradient(
@@ -172,11 +165,9 @@ export default function ParticleField({
       ctx.fillStyle = nebulaGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // 绘制粒子
       const speedMul = playing ? 1 + a.level * 2.5 : 0.25;
       const particles = particlesRef.current;
       for (const p of particles) {
-        // 漂移
         p.x += 0.00006 * p.z * speedMul;
         p.y += 0.00002 * p.z * speedMul;
         if (p.x > 1.05) p.x = -0.05;
@@ -184,7 +175,6 @@ export default function ParticleField({
         if (p.y > 1.05) p.y = -0.05;
         if (p.y < -0.05) p.y = 1.05;
 
-        // 闪烁
         p.twinkle += p.twinkleSpeed;
 
         const px = p.x * width;
@@ -196,13 +186,11 @@ export default function ParticleField({
         const alpha =
           p.baseAlpha * twinkle * (0.5 + p.z * 0.5) * (playing ? (0.6 + a.level * 0.5) : 0.8);
 
-        // 主体
         ctx.beginPath();
         ctx.arc(px, py, r, 0, Math.PI * 2);
         ctx.fillStyle = `hsla(${p.hue}, 90%, ${70 + a.treble * 20}%, ${alpha})`;
         ctx.fill();
 
-        // 亮星加光晕
         if (p.z > 0.7) {
           const glow = ctx.createRadialGradient(px, py, 0, px, py, r * 4);
           glow.addColorStop(0, `hsla(${p.hue}, 90%, 80%, ${alpha * 0.5})`);
@@ -214,7 +202,6 @@ export default function ParticleField({
         }
       }
 
-      // 流星
       const shooting = shootingRef.current;
       for (let i = shooting.length - 1; i >= 0; i--) {
         const s = shooting[i];
@@ -243,25 +230,21 @@ export default function ParticleField({
         ctx.lineTo(sx, sy);
         ctx.stroke();
 
-        // 头部
         ctx.beginPath();
         ctx.arc(sx, sy, s.size * 1.5, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.fill();
       }
 
-      // 节拍脉冲衰减
       beatPulseRef.current *= 0.88;
       if (beatPulseRef.current < 0.01) beatPulseRef.current = 0;
 
-      // 白光闪烁（强节拍）
       if (flashRef.current > 0.01) {
         ctx.fillStyle = `rgba(200, 220, 255, ${flashRef.current})`;
         ctx.fillRect(0, 0, width, height);
         flashRef.current *= 0.82;
       }
 
-      // 间奏散焦：低音量时整体微微虚化（用半透明覆盖模拟）
       if (playing && a.level < 0.05) {
         ctx.fillStyle = "rgba(10, 15, 40, 0.06)";
         ctx.fillRect(0, 0, width, height);
@@ -270,6 +253,7 @@ export default function ParticleField({
       rafRef.current = requestAnimationFrame(render);
     };
 
+    resize();
     rafRef.current = requestAnimationFrame(render);
 
     return () => {
@@ -282,7 +266,7 @@ export default function ParticleField({
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ display: "block", width: "100%", height: "100%" }}
+      style={{ display: "block", width: "100%", height: "100%", position: "absolute", inset: 0 }}
       aria-hidden="true"
     />
   );

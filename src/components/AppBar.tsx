@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Moon, Search, Sun } from "lucide-react";
 import { useThemeStore } from "@/store/themeStore";
 import IconButton from "./IconButton";
+import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
 
 interface AppBarProps {
   title: string;
@@ -20,13 +21,15 @@ export default function AppBar({
   const navigate = useNavigate();
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const statusBarHeight = useStatusBarHeight();
 
   return (
     <motion.header
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-2"
+      className="glass glass-light sticky top-0 z-30 px-4 pb-2"
+      style={{ paddingTop: `${statusBarHeight}px` }}
     >
       <div className="flex items-center justify-between">
         <div className="min-w-0">

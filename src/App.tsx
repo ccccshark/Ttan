@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -16,6 +16,7 @@ import About from "@/pages/About";
 import MyPage from "@/pages/MyPage";
 import MiniPlayer from "@/components/MiniPlayer";
 import BottomNav from "@/components/BottomNav";
+import SplashScreen from "@/components/SplashScreen";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useEqualizer } from "@/hooks/useEqualizer";
 import { useMediaSession } from "@/hooks/useMediaSession";
@@ -87,6 +88,9 @@ export default function App() {
   const outputDeviceId = useSettingsStore((s) => s.settings.outputDeviceId);
   const volumeLimit = useSettingsStore((s) => s.settings.volumeLimit);
 
+  const [showSplash, setShowSplash] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
   useAudioPlayer(audioRef);
   useEqualizer();
   useMediaSession();
@@ -97,11 +101,11 @@ export default function App() {
     initTheme();
     const unbind = bindSystemListener();
     void loadSettings();
-    // 关键：先加载音乐库（含 blob URL 重建），再加载依赖歌曲的统计/最近
     void loadLibrary().then(() => {
       void loadPlaylists();
       void loadRecents();
       void loadPlayCounts();
+      setDataLoaded(true);
     });
     return unbind;
   }, [initTheme, bindSystemListener, loadSettings, loadLibrary, loadPlaylists, loadRecents, loadPlayCounts]);
@@ -126,12 +130,22 @@ export default function App() {
     }
   }, [volumeLimit]);
 
+  const handleSplashFinish = () => {
+    setShowSplash(false);
+  };
+
   return (
     <Router>
       <div className="relative mx-auto min-h-screen max-w-[480px] bg-surface-subtle dark:bg-surface-dark">
-        <AnimatedRoutes />
-        {/* 全局唯一 audio 元素 */}
-        <audio ref={audioRef} preload="metadata" />
+        <AnimatePresence>
+          {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
+        </AnimatePresence>
+        {!showSplash && (
+          <>
+            <AnimatedRoutes />
+            <audio ref={audioRef} preload="metadata" />
+          </>
+        )}
       </div>
     </Router>
   );

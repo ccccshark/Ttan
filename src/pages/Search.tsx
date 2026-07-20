@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Search as SearchIcon, X } from "lucide-react";
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
+import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
 import SongItem from "@/components/SongItem";
 import EmptyState from "@/components/EmptyState";
 import IconButton from "@/components/IconButton";
@@ -15,6 +16,7 @@ export default function Search() {
   const navigate = useNavigate();
   const songs = useLibraryStore((s) => s.songs);
   const playSong = usePlayerStore((s) => s.playSong);
+  const statusBarHeight = useStatusBarHeight();
   const [query, setQuery] = useState("");
   const [history, setHistory] = useState<string[]>(() => {
     try {
@@ -70,7 +72,7 @@ export default function Search() {
   return (
     <div className="min-h-screen pb-28">
       {/* 搜索栏 */}
-      <div className="glass glass-light safe-top sticky top-0 z-30 px-4 pb-3">
+      <div className="glass glass-light sticky top-0 z-30 px-4 pb-3" style={{ paddingTop: `${statusBarHeight}px` }}>
         <div className="flex items-center gap-2">
           <IconButton ariaLabel="返回" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />

@@ -1,10 +1,9 @@
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Home as HomeIcon, Library, User2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// 椒盐风格底部导航：3 Tab（首页 / 音乐库 / 我的）
-// Mini Player 由 MiniPlayer 组件浮动渲染在底部 nav 之上
 type TabKey = "home" | "library" | "my";
 
 const TABS: { key: TabKey; label: string; icon: typeof HomeIcon; path: string; match: string[] }[] = [
@@ -16,7 +15,22 @@ const TABS: { key: TabKey; label: string; icon: typeof HomeIcon; path: string; m
 export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const current = TABS.find((t) => t.match.some((m) => location.pathname.startsWith(m)))?.key ?? "home";
+  const [current, setCurrent] = useState<TabKey>("home");
+  
+  useEffect(() => {
+    const path = location.pathname;
+    let activeTab: TabKey = "home";
+    
+    if (path === "/" || path.startsWith("/#")) {
+      activeTab = "home";
+    } else if (path.startsWith("/playlists") || path.startsWith("/search") || path.startsWith("/song/")) {
+      activeTab = "library";
+    } else if (path.startsWith("/my") || path.startsWith("/settings") || path.startsWith("/about")) {
+      activeTab = "my";
+    }
+    
+    setCurrent(activeTab);
+  }, [location.pathname]);
 
   return (
     <nav

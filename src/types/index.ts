@@ -69,6 +69,7 @@ export type PlaybackBackground =
   | "particle" // 星河粒子
   | "blurCover" // 模糊封面
   | "solid" // 纯色
+  | "customImage" // 自定义图片
   | "none"; // 无（仅暗色）
 
 // 粒子背景密度
@@ -110,12 +111,13 @@ export interface Settings {
   fontScale: number; // 0.85 / 0.9 / 1.0 / 1.1 / 1.25
   amoledBlack: boolean; // 深色模式下使用纯黑 #000000
 
-  // === 播放页背景 ===
+  // 播放页背景 ===
   playbackBackground: PlaybackBackground;
   flowLightIntensity: number; // 0 / 0.3 / 0.6 / 1.0
   particleDensity: ParticleDensity;
   coverStyle: CoverStyle; // 方形 / 黑胶
   spectrumStyle: SpectrumStyle; // 频谱可视化样式
+  customBackgroundImage: string; // 自定义背景图片（base64 或 blob URL）
 
   // === 歌词 ===
   lyricsFontSize: number; // 14-48 px
@@ -177,6 +179,7 @@ export const DEFAULT_SETTINGS: Settings = {
   particleDensity: "medium",
   coverStyle: "square",
   spectrumStyle: "off",
+  customBackgroundImage: "",
   // 歌词
   lyricsFontSize: 20,
   lyricsLineHeight: 1.5,

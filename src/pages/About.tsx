@@ -1,9 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Github, Heart, Music } from "lucide-react";
 import { motion } from "framer-motion";
+import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
 
 export default function About() {
   const navigate = useNavigate();
+  const statusBarHeight = useStatusBarHeight();
 
   const features = [
     { title: "本地导入", desc: "支持 MP3 / FLAC / OGG / M4A 等多种格式" },
@@ -16,7 +18,7 @@ export default function About() {
 
   return (
     <div className="min-h-screen bg-surface-subtle pb-20 dark:bg-surface-dark">
-      <header className="safe-top sticky top-0 z-10 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#05060f]/70">
+      <header className="sticky top-0 z-10 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#05060f]/70" style={{ paddingTop: `${statusBarHeight}px` }}>
         <div className="mx-auto flex max-w-[480px] items-center gap-2 px-3 py-3">
           <button
             type="button"

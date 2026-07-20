@@ -22,6 +22,7 @@ import {
 import { useSettingsStore } from "@/store/settingsStore";
 import { useThemeStore } from "@/store/themeStore";
 import { useLibraryStore } from "@/store/libraryStore";
+import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
 import {
   ACCENT_PRESETS,
   EQ_PRESETS,
@@ -59,6 +60,7 @@ export default function Settings() {
   const setMode = useThemeStore((s) => s.setMode);
 
   const { songs, clearLibrary, loadRecents, loadPlayCounts } = useLibraryStore();
+  const statusBarHeight = useStatusBarHeight();
 
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -185,7 +187,10 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-surface-subtle pb-28 dark:bg-surface-dark">
       {/* 顶部导航 */}
-      <header className="safe-top sticky top-0 z-10 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#05060f]/70">
+      <header
+        className="sticky top-0 z-10 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#05060f]/70"
+        style={{ paddingTop: `${statusBarHeight}px` }}
+      >
         <div className="mx-auto flex max-w-[480px] items-center gap-2 px-3 py-2">
           <button
             type="button"
@@ -312,9 +317,56 @@ export default function Settings() {
                 { label: "粒子", value: "particle" },
                 { label: "封面", value: "blurCover" },
                 { label: "纯色", value: "solid" },
+                { label: "自定义图片", value: "customImage" },
               ]}
             />
           </Row>
+
+          {settings.playbackBackground === "customImage" && (
+            <Row title="自定义图片" subtitle="上传背景图片">
+              <div className="flex items-center gap-2">
+                {settings.customBackgroundImage ? (
+                  <>
+                    <img
+                      src={settings.customBackgroundImage}
+                      alt="预览"
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => update({ customBackgroundImage: "" })}
+                      className="rounded-full bg-black/10 px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20"
+                    >
+                      清除
+                    </button>
+                  </>
+                ) : (
+                  <label
+                    className="flex cursor-pointer items-center gap-2 rounded-full bg-accent/10 px-4 py-2 text-xs font-medium text-accent hover:bg-accent/20"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Upload className="h-4 w-4" />
+                    选择图片
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const result = event.target?.result as string;
+                          update({ customBackgroundImage: result });
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </Row>
+          )}
 
           <Row title="流光强度" subtitle="动态光球亮度">
             <Slider
