@@ -1,6 +1,7 @@
 import { parseBlob } from "music-metadata";
 import type { Song } from "@/types";
 import { generateId, orUnknown, stripExtension } from "./format";
+import { parseLrc } from "./lyrics";
 
 // 默认占位封面（SVG data URL）
 const PLACEHOLDER_COVER =
@@ -20,6 +21,16 @@ const PLACEHOLDER_COVER =
 
 export function getPlaceholderCover(): string {
   return PLACEHOLDER_COVER;
+}
+
+export interface ParsedFile {
+  type: "song" | "lyrics";
+  song?: Song;
+  lyrics?: {
+    text: string;
+    fileName: string;
+    baseName: string;
+  };
 }
 
 // 从 File 解析为 Song 对象
@@ -71,7 +82,6 @@ export async function fileToSong(file: File): Promise<Song> {
     if (uslt?.text) lyrics = uslt.text;
   } catch (err) {
     console.warn("解析元数据失败:", file.name, err);
-    // 元数据解析失败时，仍使用文件名作为标题
   }
 
   return {
@@ -93,26 +103,77 @@ export async function fileToSong(file: File): Promise<Song> {
     channels,
     genre,
     year,
-    // 持久化字段：原始 Blob
     fileBlob: file,
     coverBlob,
   };
 }
 
-// 批量解析
+// 解析LRC歌词文件
+export async function parseLrcFile(file: File): Promise<{ text: string; fileName: string; baseName: string }> {
+  const text = await file.text();
+  // 验证是否是有效的LRC格式
+  if (!text.includes("[00:") && !text.includes("[01:")) {
+    throw new Error("无效的LRC文件");
+  }
+  const baseName = stripExtension(file.name);
+  return { text, fileName: file.name, baseName };
+}
+
+// 判断文件是否是音乐文件
+export function isAudioFile(file: File): boolean {
+  const audioExtensions = [
+    ".mp3", ".m4a", ".aac", ".flac", ".wav", ".ogg", ".oga", ".opus",
+    ".wma", ".ape", ".wv", ".mpc", ".alac", ".dsf", ".dff", ".tta"
+  ];
+  const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+  return audioExtensions.includes(ext);
+}
+
+// 判断文件是否是LRC歌词文件
+export function isLrcFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith(".lrc");
+}
+
+// 批量解析（支持混合导入音乐和LRC文件）
 export async function filesToSongs(
   files: File[],
   onProgress?: (done: number, total: number) => void
 ): Promise<Song[]> {
   const songs: Song[] = [];
-  for (let i = 0; i < files.length; i++) {
+  const lyricsMap = new Map<string, string>();
+
+  // 先分离LRC文件和音乐文件
+  const audioFiles = files.filter(isAudioFile);
+  const lrcFiles = files.filter(isLrcFile);
+
+  // 解析所有LRC文件，按basename索引
+  for (const lrcFile of lrcFiles) {
     try {
-      const song = await fileToSong(files[i]);
+      const parsed = await parseLrcFile(lrcFile);
+      lyricsMap.set(parsed.baseName.toLowerCase(), parsed.text);
+    } catch (err) {
+      console.warn("解析LRC文件失败:", lrcFile.name, err);
+    }
+  }
+
+  // 解析音乐文件，匹配LRC歌词
+  for (let i = 0; i < audioFiles.length; i++) {
+    try {
+      const song = await fileToSong(audioFiles[i]);
+      // 尝试匹配同名LRC歌词（优先使用内嵌歌词，没有则使用外部LRC）
+      if (!song.lyrics) {
+        const baseName = stripExtension(audioFiles[i].name).toLowerCase();
+        const lrcText = lyricsMap.get(baseName);
+        if (lrcText) {
+          song.lyrics = lrcText;
+        }
+      }
       songs.push(song);
     } catch (err) {
-      console.error("解析失败:", files[i].name, err);
+      console.error("解析失败:", audioFiles[i].name, err);
     }
-    onProgress?.(i + 1, files.length);
+    onProgress?.(i + 1, audioFiles.length);
   }
+
   return songs;
 }

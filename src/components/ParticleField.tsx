@@ -106,11 +106,10 @@ export default function ParticleField({
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    resize();
+
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
-    // 初始化粒子
     const initParticles = () => {
       const arr: Particle[] = [];
       for (let i = 0; i < STAR_COUNT; i++) {
@@ -122,12 +121,16 @@ export default function ParticleField({
           baseAlpha: Math.random() * 0.6 + 0.3,
           twinkle: Math.random() * Math.PI * 2,
           twinkleSpeed: Math.random() * 0.04 + 0.01,
-          hue: 200 + Math.random() * 40, // 200-240: 蓝青色系
+          hue: 200 + Math.random() * 40,
         });
       }
       particlesRef.current = arr;
     };
-    initParticles();
+
+    setTimeout(() => {
+      resize();
+      initParticles();
+    }, 100);
 
     let frame = 0;
     const render = () => {
@@ -191,7 +194,7 @@ export default function ParticleField({
 
         const twinkle = 0.6 + Math.sin(p.twinkle) * 0.4;
         const alpha =
-          p.baseAlpha * twinkle * (0.5 + p.z * 0.5) * (0.6 + a.level * 0.5);
+          p.baseAlpha * twinkle * (0.5 + p.z * 0.5) * (playing ? (0.6 + a.level * 0.5) : 0.8);
 
         // 主体
         ctx.beginPath();

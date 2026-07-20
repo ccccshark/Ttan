@@ -218,10 +218,9 @@ export default function NowPlaying() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-950 via-[#05060f] to-black text-white">
-      {/* === 背景层：封面取色渐变 + 流光 === */}
-      {currentSong.coverUrl && (
+      {/* === 背景层：根据设置动态切换 === */}
+      {settings.playbackBackground === "blurCover" && currentSong.coverUrl && (
         <>
-          {/* 封面模糊背景 */}
           <div
             className="absolute inset-0 -z-30 scale-130"
             style={{
@@ -231,13 +230,12 @@ export default function NowPlaying() {
               filter: "blur(100px) saturate(200%) brightness(0.7)",
             }}
           />
-          {/* 颜色遮罩层 */}
           <div className="absolute inset-0 -z-20 bg-gradient-to-b from-black/40 via-black/60 to-black/80" />
         </>
       )}
 
       {/* 流光效果 */}
-      {settings.playbackBackground !== "none" && (
+      {settings.playbackBackground === "flowLight" && (
         <FlowingLight
           coverUrl={currentSong.coverUrl}
           isPlaying={isPlaying}
@@ -252,12 +250,24 @@ export default function NowPlaying() {
         <ParticleField
           analysis={analysis}
           isPlaying={isPlaying}
-          className="absolute inset-0 -z-10"
+          className="absolute inset-0 z-0"
+        />
+      )}
+
+      {/* 纯色背景 */}
+      {settings.playbackBackground === "solid" && (
+        <div
+          className="absolute inset-0 -z-30"
+          style={{
+            background: settings.dynamicColor && currentSong.coverUrl
+              ? `var(--accent-color, #FF6B35)`
+              : "#05060f",
+          }}
         />
       )}
 
       {/* === 顶部极简栏 === */}
-      <div className="safe-top relative flex items-center justify-between px-4 pt-1">
+      <div className="safe-top relative flex items-center justify-between px-4">
         <motion.button
           type="button"
           onClick={() => navigate(-1)}
@@ -289,25 +299,26 @@ export default function NowPlaying() {
         className="relative mx-auto flex min-h-[calc(100vh-260px)] max-w-[480px] cursor-grab px-6 active:cursor-grabbing"
       >
         <AnimatePresence mode="wait">
-          {view === "lyrics" && hasLyrics ? (
+          {view === "lyrics" ? (
             <motion.div
               key="lyrics"
               initial={{ opacity: 0, x: -40 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              className="flex flex-1 flex-col items-center justify-center"
+              className="flex flex-1 flex-col"
             >
               <LyricsStage
                 lyrics={currentSong.lyrics}
                 currentTime={currentTime}
                 onSeek={(t) => _onRequestSeek?.(t)}
+                className="flex-1"
               />
               <motion.button
                 type="button"
                 onClick={() => setView("cover")}
                 whileTap={{ scale: 0.95 }}
-                className="mt-6 rounded-full bg-white/8 px-4 py-2 text-xs font-medium text-white/80 backdrop-blur-md hover:bg-white/15"
+                className="mb-4 rounded-full bg-white/8 px-4 py-2 text-xs font-medium text-white/80 backdrop-blur-md hover:bg-white/15"
               >
                 查看封面
               </motion.button>
@@ -443,16 +454,19 @@ export default function NowPlaying() {
                       )}
                     />
                   </motion.button>
-                  {hasLyrics && (
-                    <motion.button
-                      type="button"
-                      onClick={() => setView("lyrics")}
-                      whileTap={{ scale: 0.95 }}
-                      className="rounded-full bg-white/6 px-4 py-2 text-xs font-medium text-white/70 backdrop-blur-md hover:bg-white/12"
-                    >
-                      歌词
-                    </motion.button>
-                  )}
+                  <motion.button
+                    type="button"
+                    onClick={() => setView("lyrics")}
+                    whileTap={{ scale: 0.95 }}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-xs font-medium backdrop-blur-md transition-colors",
+                      hasLyrics
+                        ? "bg-white/6 text-white/70 hover:bg-white/12"
+                        : "bg-white/4 text-white/40"
+                    )}
+                  >
+                    歌词
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>
