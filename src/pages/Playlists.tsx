@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Clock,
   Disc3,
+  Heart,
   ListMusic,
   Play,
   Plus,
@@ -23,7 +24,7 @@ import IconButton from "@/components/IconButton";
 import type { Playlist, Song } from "@/types";
 import { cn } from "@/lib/utils";
 
-type Tab = "all" | "recent" | "albums" | "artists" | "mine";
+type Tab = "all" | "recent" | "albums" | "artists" | "mine" | "favorites";
 
 interface AlbumGroup {
   key: string;
@@ -55,6 +56,7 @@ export default function Playlists() {
   const loadRecents = useLibraryStore((s) => s.loadRecents);
   const createPlaylist = useLibraryStore((s) => s.createPlaylist);
   const deletePlaylist = useLibraryStore((s) => s.deletePlaylist);
+  const addToPlaylist = useLibraryStore((s) => s.addToPlaylist);
 
   const setQueue = usePlayerStore((s) => s.setQueue);
   const playAt = usePlayerStore((s) => s.playAt);
@@ -65,6 +67,7 @@ export default function Playlists() {
   const [selectedArtist, setSelectedArtist] = useState<ArtistGroup | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
+  const [showAddSongs, setShowAddSongs] = useState(false);
   const statusBarHeight = useStatusBarHeight();
 
   useEffect(() => {
@@ -87,6 +90,14 @@ export default function Playlists() {
       .map((id) => map.get(id))
       .filter((s): s is Song => !!s);
   }, [recentIds, songs]);
+
+  const favorites = useMemo(() => songs.filter((s) => s.favorite && !s.hidden), [songs]);
+
+  const availableSongs = useMemo(() => {
+    if (!selectedPlaylist) return [];
+    const ids = new Set(selectedPlaylist.songIds);
+    return songs.filter((s) => !ids.has(s.id) && !s.hidden);
+  }, [selectedPlaylist, songs]);
 
   // 按专辑分组
   const albums = useMemo<AlbumGroup[]>(() => {
@@ -223,15 +234,35 @@ export default function Playlists() {
                 <Play className="h-4 w-4 fill-white" />
                 播放全部
               </button>
+              <button
+                type="button"
+                onClick={() => setShowAddSongs(true)}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/6 px-4 py-1.5 text-sm font-medium text-ink-muted backdrop-blur-md transition-colors hover:bg-white/12 dark:bg-white/10 dark:text-white/70"
+              >
+                <Plus className="h-4 w-4" />
+                添加歌曲
+              </button>
             </div>
           </div>
 
           {playlistSongs.length === 0 ? (
-            <EmptyState
-              icon={<Disc3 className="h-9 w-9" />}
-              title="歌单暂无歌曲"
-              description="从音乐库中选择歌曲，添加到此歌单。"
-            />
+            <>
+              <EmptyState
+                icon={<Disc3 className="h-9 w-9" />}
+                title="歌单暂无歌曲"
+                description="从音乐库中选择歌曲，添加到此歌单。"
+              />
+              <div className="mt-2 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowAddSongs(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/6 px-4 py-1.5 text-sm font-medium text-ink-muted backdrop-blur-md transition-colors hover:bg-white/12 dark:bg-white/10 dark:text-white/70"
+                >
+                  <Plus className="h-4 w-4" />
+                  添加歌曲
+                </button>
+              </div>
+            </>
           ) : (
             <div className="space-y-0.5">
               {playlistSongs.map((song, i) => (
@@ -415,6 +446,7 @@ export default function Playlists() {
             { key: "recent", label: "最近" },
             { key: "albums", label: "专辑" },
             { key: "artists", label: "艺人" },
+            { key: "favorites", label: "收藏" },
             { key: "mine", label: "歌单" },
           ] as const).map((t) => (
             <button
@@ -614,6 +646,49 @@ export default function Playlists() {
             </motion.div>
           )}
 
+          {tab === "favorites" && (
+            <motion.div
+              key="favorites"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              {favorites.length === 0 ? (
+                <EmptyState
+                  icon={<Heart className="h-9 w-9" />}
+                  title="暂无收藏"
+                  description="在播放页点击红心收藏歌曲。"
+                />
+              ) : (
+                <>
+                  <div className="mb-2 flex items-center justify-between px-2">
+                    <span className="text-xs text-ink-muted">
+                      {favorites.length} 首收藏
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handlePlayList(favorites)}
+                      className="flex items-center gap-1 text-xs font-medium text-accent"
+                    >
+                      <Play className="h-3.5 w-3.5 fill-accent" />
+                      播放全部
+                    </button>
+                  </div>
+                  <div className="space-y-0.5">
+                    {favorites.map((song, i) => (
+                      <SongItem
+                        key={song.id}
+                        song={song}
+                        index={i}
+                        onClick={(s) => playSong(s, favorites)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+
           {tab === "mine" && (
             <motion.div
               key="mine"
@@ -751,6 +826,62 @@ export default function Playlists() {
                   创建歌单
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 添加歌曲到歌单弹窗 */}
+      <AnimatePresence>
+        {showAddSongs && selectedPlaylist && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6"
+            onClick={() => setShowAddSongs(false)}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+            <motion.div
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-4 shadow-2xl dark:bg-[#1a1d2e] sm:rounded-3xl"
+            >
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/10 dark:bg-white/10 sm:hidden" />
+              <h3 className="mb-3 text-base font-bold text-ink dark:text-white">添加歌曲到歌单</h3>
+              <div className="max-h-[50vh] overflow-y-auto thin-scrollbar">
+                {availableSongs.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-ink-muted">所有歌曲已添加</div>
+                ) : (
+                  availableSongs.map((song) => (
+                    <button
+                      key={song.id}
+                      type="button"
+                      onClick={() => {
+                        void addToPlaylist(selectedPlaylist.id, [song.id]);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/8"
+                    >
+                      <CoverArt src={song.coverUrl} alt={song.title} size={40} rounded="sm" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-truncate text-sm font-medium text-ink dark:text-white">{song.title}</div>
+                        <div className="text-truncate text-xs text-ink-muted">{song.artist}</div>
+                      </div>
+                      <Plus className="h-4 w-4 text-accent" />
+                    </button>
+                  ))
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddSongs(false)}
+                className="mt-3 w-full rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold text-ink-muted dark:bg-white/[0.08] dark:text-white/60"
+              >
+                完成
+              </button>
             </motion.div>
           </motion.div>
         )}

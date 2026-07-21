@@ -271,14 +271,11 @@ export default function NowPlaying() {
       {/* 自定义图片背景 */}
       {settings.playbackBackground === "customImage" && settings.customBackgroundImage && (
         <>
-          <div
-            className="absolute inset-0 -z-30"
-            style={{
-              backgroundImage: `url(${settings.customBackgroundImage})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              filter: "brightness(0.6)",
-            }}
+          <img
+            src={settings.customBackgroundImage}
+            alt=""
+            className="absolute inset-0 -z-30 h-full w-full object-cover"
+            style={{ filter: "brightness(0.6)" }}
           />
           <div className="absolute inset-0 -z-20 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
         </>
@@ -460,20 +457,49 @@ export default function NowPlaying() {
                   <motion.button
                     type="button"
                     onClick={() => toggleFavorite(currentSong.id)}
-                    whileTap={{ scale: 0.9 }}
+                    whileTap={{ scale: 0.85 }}
                     className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-md transition-colors",
+                      "relative flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-md transition-colors",
                       isFavorite
                         ? "bg-rose-500/20 text-rose-400"
                         : "bg-white/6 text-white/60 hover:bg-white/12"
                     )}
                   >
-                    <Heart
-                      className={cn(
-                        "h-5 w-5 transition-transform",
-                        isFavorite && "fill-rose-400 scale-110"
+                    <AnimatePresence mode="wait">
+                      {isFavorite ? (
+                        <motion.div
+                          key="filled"
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: [1.3, 0.9, 1.1, 1], opacity: 1 }}
+                          exit={{ scale: 0.5, opacity: 0 }}
+                          transition={{ duration: 0.4, ease: "easeOut" }}
+                        >
+                          <Heart className="h-5 w-5 fill-rose-400 text-rose-400" />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="outline"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <Heart className="h-5 w-5" />
+                        </motion.div>
                       )}
-                    />
+                    </AnimatePresence>
+                    {/* 收藏时扩散光环 */}
+                    <AnimatePresence>
+                      {isFavorite && (
+                        <motion.span
+                          key="ring"
+                          initial={{ scale: 0.8, opacity: 0.6 }}
+                          animate={{ scale: 1.8, opacity: 0 }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className="absolute inset-0 rounded-full border-2 border-rose-400"
+                        />
+                      )}
+                    </AnimatePresence>
                   </motion.button>
                   <motion.button
                     type="button"

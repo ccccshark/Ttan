@@ -172,12 +172,22 @@ export function useAudioPlayer(audioRef: React.RefObject<HTMLAudioElement>) {
     void detectOutputs().then((c) => (prevOutputCount = c));
     navigator.mediaDevices?.addEventListener?.("devicechange", onDeviceChange);
 
-    // === 音频焦点打断暂停（页面隐藏 / 来电等）===
+    // === 音频焦点打断暂停 ===
+    // 在 Capacitor 原生环境中，页面隐藏（息屏/切后台）不应暂停播放，
+    // 因为前台服务（foreground service）会保证音频继续播放。
+    // 仅在纯 Web 环境中，且用户开启了"音频焦点打断暂停"时才暂停。
+    const isCapacitor = (() => {
+      const cap = (window as unknown as Record<string, unknown>).Capacitor;
+      if (!cap || typeof cap !== "object") return false;
+      const isNative = (cap as Record<string, unknown>).isNativePlatform;
+      return typeof isNative === "function" ? !!isNative() : !!isNative;
+    })();
     const onVisibility = () => {
+      // 在 Capacitor 原生环境中，忽略页面隐藏事件，允许后台继续播放
+      if (isCapacitor) return;
       const { pauseOnInterruption } = useSettingsStore.getState().settings;
       if (!pauseOnInterruption) return;
       if (document.hidden && !audio.paused) {
-        // 仅暂停，不置 userPaused：让恢复时仍可继续
         audio.pause();
       }
     };

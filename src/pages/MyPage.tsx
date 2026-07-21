@@ -108,13 +108,10 @@ export default function MyPage() {
           <button
             type="button"
             onClick={() => {
-              if (favorites.length > 0) {
-                handlePlayFavorites();
-                navigate("/playing");
-              }
+              // 跳转到收藏歌曲列表视图
+              navigate("/playlists?tab=favorites");
             }}
-            disabled={favorites.length === 0}
-            className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-black/[0.02] disabled:opacity-60 dark:hover:bg-white/[0.03]"
+            className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
           >
             <div className="relative">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500/20 to-rose-500/5">

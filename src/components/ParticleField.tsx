@@ -1,25 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import type { AudioAnalysis } from "@/hooks/useAudioAnalyser";
 
-interface Particle {
-  x: number;
-  y: number;
-  z: number;
-  size: number;
-  baseAlpha: number;
-  twinkle: number;
-  twinkleSpeed: number;
-  hue: number;
-}
+// 极光粒子系统 - 参考 Spotify / Apple Music 风格
+// 多层渐变雾气 + 流动光带 + 漂浮微粒 + 节拍脉冲
 
-interface ShootingStar {
+interface Particle {
   x: number;
   y: number;
   vx: number;
   vy: number;
+  size: number;
+  baseAlpha: number;
   life: number;
   maxLife: number;
-  size: number;
+  hue: number;
+  sat: number;
+}
+
+interface AuroraBand {
+  y: number;
+  amplitude: number;
+  frequency: number;
+  phase: number;
+  speed: number;
+  hue: number;
+  sat: number;
+  width: number;
+  alpha: number;
 }
 
 interface ParticleFieldProps {
@@ -28,25 +35,8 @@ interface ParticleFieldProps {
   className?: string;
 }
 
-const STAR_COUNT = 220;
-
-function spawnShootingStar(arr: ShootingStar[]) {
-  const fromLeft = Math.random() > 0.5;
-  const startX = fromLeft ? -0.1 : 1.1;
-  const startY = Math.random() * 0.5;
-  const speed = 0.012 + Math.random() * 0.01;
-  const angle = Math.PI / 6 + Math.random() * 0.2;
-  arr.push({
-    x: startX,
-    y: startY,
-    vx: Math.cos(angle) * speed * (fromLeft ? 1 : -1),
-    vy: Math.sin(angle) * speed,
-    life: 0,
-    maxLife: 60 + Math.random() * 30,
-    size: 1.5 + Math.random() * 1,
-  });
-  if (arr.length > 5) arr.shift();
-}
+const PARTICLE_COUNT = 60;
+const AURORA_BANDS = 4;
 
 export default function ParticleField({
   analysis,
@@ -55,9 +45,9 @@ export default function ParticleField({
 }: ParticleFieldProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
-  const shootingRef = useRef<ShootingStar[]>([]);
+  const auroraRef = useRef<AuroraBand[]>([]);
   const beatPulseRef = useRef(0);
-  const flashRef = useRef(0);
+  const timeRef = useRef(0);
   const analysisRef = useRef(analysis);
   const playingRef = useRef(isPlaying);
   const rafRef = useRef<number | null>(null);
@@ -67,12 +57,6 @@ export default function ParticleField({
     analysisRef.current = analysis;
     if (analysis.beat) {
       beatPulseRef.current = 1;
-      if (analysis.bass > 0.55) {
-        flashRef.current = Math.min(0.25, analysis.bass * 0.35);
-      }
-      if (Math.random() < 0.18) {
-        spawnShootingStar(shootingRef.current);
-      }
     }
   }, [analysis]);
 
@@ -99,6 +83,7 @@ export default function ParticleField({
         canvas.height = Math.floor(height * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         initParticles();
+        initAurora();
         setInitialized(true);
       }
     };
@@ -106,20 +91,43 @@ export default function ParticleField({
     const initParticles = () => {
       if (particlesRef.current.length > 0) return;
       const arr: Particle[] = [];
-      for (let i = 0; i < STAR_COUNT; i++) {
-        arr.push({
-          x: Math.random(),
-          y: Math.random(),
-          z: Math.random() * 0.9 + 0.1,
-          size: Math.random() * 1.8 + 0.4,
-          baseAlpha: Math.random() * 0.6 + 0.3,
-          twinkle: Math.random() * Math.PI * 2,
-          twinkleSpeed: Math.random() * 0.04 + 0.01,
-          hue: 200 + Math.random() * 40,
-        });
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        arr.push(createParticle());
       }
       particlesRef.current = arr;
     };
+
+    const initAurora = () => {
+      if (auroraRef.current.length > 0) return;
+      const arr: AuroraBand[] = [];
+      for (let i = 0; i < AURORA_BANDS; i++) {
+        arr.push({
+          y: 0.2 + (i / AURORA_BANDS) * 0.5,
+          amplitude: 0.06 + Math.random() * 0.08,
+          frequency: 1.5 + Math.random() * 2,
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.008 + Math.random() * 0.006,
+          hue: 220 + i * 30 + Math.random() * 20,
+          sat: 60 + Math.random() * 30,
+          width: 0.08 + Math.random() * 0.12,
+          alpha: 0.12 + Math.random() * 0.1,
+        });
+      }
+      auroraRef.current = arr;
+    };
+
+    const createParticle = (): Particle => ({
+      x: Math.random(),
+      y: Math.random(),
+      vx: (Math.random() - 0.5) * 0.0003,
+      vy: -0.0001 - Math.random() * 0.0004,
+      size: 1 + Math.random() * 2.5,
+      baseAlpha: 0.3 + Math.random() * 0.5,
+      life: 0,
+      maxLife: 200 + Math.random() * 300,
+      hue: 200 + Math.random() * 60,
+      sat: 60 + Math.random() * 30,
+    });
 
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
@@ -132,123 +140,139 @@ export default function ParticleField({
 
       const a = analysisRef.current;
       const playing = playingRef.current;
+      const dt = playing ? 1 : 0.3;
+      timeRef.current += dt * 0.016;
 
-      const bgGrad = ctx.createRadialGradient(
-        width / 2,
-        height * 0.4,
-        0,
-        width / 2,
-        height * 0.5,
-        Math.max(width, height) * 0.7
-      );
-      const intensity = 0.6 + a.level * 0.4;
-      bgGrad.addColorStop(0, `rgba(20, 30, 70, ${0.85 * intensity})`);
-      bgGrad.addColorStop(0.4, `rgba(8, 12, 35, ${0.92})`);
-      bgGrad.addColorStop(1, `rgba(2, 3, 12, 1)`);
+      // === 背景：深色渐变 ===
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+      const intensity = 0.5 + a.level * 0.5;
+      bgGrad.addColorStop(0, `rgba(6, 8, 20, 1)`);
+      bgGrad.addColorStop(0.4, `rgba(10, 14, 35, ${0.95 * intensity})`);
+      bgGrad.addColorStop(1, `rgba(4, 5, 15, 1)`);
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      const nebulaRadius =
-        Math.min(width, height) * (0.35 + a.bass * 0.25 + beatPulseRef.current * 0.15);
-      const nebulaGrad = ctx.createRadialGradient(
-        width / 2,
-        height * 0.45,
-        0,
-        width / 2,
-        height * 0.45,
-        nebulaRadius
+      // === 极光光带 ===
+      const auroras = auroraRef.current;
+      for (const band of auroras) {
+        band.phase += band.speed * dt;
+        const bandAlpha = band.alpha * (0.6 + a.level * 0.6 + beatPulseRef.current * 0.3);
+        const bandWidth = band.width * height * (1 + a.bass * 0.4 + beatPulseRef.current * 0.2);
+
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+
+        // 绘制多条正弦波叠加形成极光带
+        ctx.beginPath();
+        const steps = 80;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const x = t * width;
+          const wave1 = Math.sin(t * band.frequency * Math.PI + band.phase) * band.amplitude;
+          const wave2 = Math.sin(t * band.frequency * 1.7 * Math.PI + band.phase * 1.3) * band.amplitude * 0.5;
+          const wave3 = Math.sin(t * band.frequency * 0.5 * Math.PI + band.phase * 0.7) * band.amplitude * 0.3;
+          const y = (band.y + wave1 + wave2 + wave3) * height;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+
+        // 闭合底部形成填充区域
+        for (let i = steps; i >= 0; i--) {
+          const t = i / steps;
+          const x = t * width;
+          const wave1 = Math.sin(t * band.frequency * Math.PI + band.phase) * band.amplitude;
+          const wave2 = Math.sin(t * band.frequency * 1.7 * Math.PI + band.phase * 1.3) * band.amplitude * 0.5;
+          const wave3 = Math.sin(t * band.frequency * 0.5 * Math.PI + band.phase * 0.7) * band.amplitude * 0.3;
+          const y = (band.y + wave1 + wave2 + wave3) * height + bandWidth;
+          ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(0, band.y * height - bandWidth, 0, band.y * height + bandWidth);
+        const h = band.hue + a.treble * 20 + beatPulseRef.current * 10;
+        grad.addColorStop(0, `hsla(${h}, ${band.sat}%, 60%, 0)`);
+        grad.addColorStop(0.3, `hsla(${h}, ${band.sat}%, 65%, ${bandAlpha * 0.6})`);
+        grad.addColorStop(0.5, `hsla(${h}, ${band.sat}%, 70%, ${bandAlpha})`);
+        grad.addColorStop(0.7, `hsla(${h}, ${band.sat}%, 65%, ${bandAlpha * 0.6})`);
+        grad.addColorStop(1, `hsla(${h}, ${band.sat}%, 60%, 0)`);
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // === 中心光晕（跟随节拍） ===
+      const glowRadius = Math.min(width, height) * (0.25 + a.bass * 0.2 + beatPulseRef.current * 0.15);
+      const glowGrad = ctx.createRadialGradient(
+        width / 2, height * 0.42, 0,
+        width / 2, height * 0.42, glowRadius
       );
-      const nebulaAlpha = 0.18 + a.bass * 0.25 + beatPulseRef.current * 0.2;
-      nebulaGrad.addColorStop(0, `rgba(80, 130, 255, ${nebulaAlpha})`);
-      nebulaGrad.addColorStop(0.5, `rgba(60, 90, 200, ${nebulaAlpha * 0.4})`);
-      nebulaGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = nebulaGrad;
+      const glowAlpha = 0.08 + a.bass * 0.15 + beatPulseRef.current * 0.12;
+      const glowHue = 240 + a.treble * 30;
+      glowGrad.addColorStop(0, `hsla(${glowHue}, 80%, 70%, ${glowAlpha})`);
+      glowGrad.addColorStop(0.5, `hsla(${glowHue}, 70%, 50%, ${glowAlpha * 0.3})`);
+      glowGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.globalCompositeOperation = "screen";
+      ctx.fillStyle = glowGrad;
       ctx.fillRect(0, 0, width, height);
+      ctx.globalCompositeOperation = "source-over";
 
-      const speedMul = playing ? 1 + a.level * 2.5 : 0.25;
+      // === 漂浮微粒 ===
+      const speedMul = playing ? 1 + a.level * 2 : 0.3;
       const particles = particlesRef.current;
-      for (const p of particles) {
-        p.x += 0.00006 * p.z * speedMul;
-        p.y += 0.00002 * p.z * speedMul;
-        if (p.x > 1.05) p.x = -0.05;
-        if (p.x < -0.05) p.x = 1.05;
-        if (p.y > 1.05) p.y = -0.05;
-        if (p.y < -0.05) p.y = 1.05;
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.x += p.vx * speedMul;
+        p.y += p.vy * speedMul;
+        p.life += dt;
 
-        p.twinkle += p.twinkleSpeed;
+        if (p.life > p.maxLife || p.y < -0.05 || p.x < -0.05 || p.x > 1.05) {
+          particles[i] = createParticle();
+          particles[i].y = 1.05;
+          continue;
+        }
+
+        const lifeRatio = p.life / p.maxLife;
+        // 淡入淡出
+        const fadeIn = Math.min(1, lifeRatio * 5);
+        const fadeOut = Math.max(0, 1 - (lifeRatio - 0.7) / 0.3);
+        const alpha = p.baseAlpha * fadeIn * fadeOut * (playing ? (0.5 + a.level * 0.5) : 0.4);
 
         const px = p.x * width;
         const py = p.y * height;
-        const sizeMul = 1 + p.z * 1.5 + beatPulseRef.current * 0.8;
+        const sizeMul = 1 + beatPulseRef.current * 0.5 + a.bass * 0.3;
         const r = p.size * sizeMul;
 
-        const twinkle = 0.6 + Math.sin(p.twinkle) * 0.4;
-        const alpha =
-          p.baseAlpha * twinkle * (0.5 + p.z * 0.5) * (playing ? (0.6 + a.level * 0.5) : 0.8);
+        // 微粒发光
+        const glow = ctx.createRadialGradient(px, py, 0, px, py, r * 3);
+        glow.addColorStop(0, `hsla(${p.hue}, ${p.sat}%, 80%, ${alpha})`);
+        glow.addColorStop(0.4, `hsla(${p.hue}, ${p.sat}%, 70%, ${alpha * 0.4})`);
+        glow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(px, py, r * 3, 0, Math.PI * 2);
+        ctx.fill();
 
+        // 微粒核心
         ctx.beginPath();
         ctx.arc(px, py, r, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue}, 90%, ${70 + a.treble * 20}%, ${alpha})`;
+        ctx.fillStyle = `hsla(${p.hue}, ${p.sat}%, 90%, ${alpha * 0.8})`;
         ctx.fill();
-
-        if (p.z > 0.7) {
-          const glow = ctx.createRadialGradient(px, py, 0, px, py, r * 4);
-          glow.addColorStop(0, `hsla(${p.hue}, 90%, 80%, ${alpha * 0.5})`);
-          glow.addColorStop(1, "rgba(0,0,0,0)");
-          ctx.fillStyle = glow;
-          ctx.beginPath();
-          ctx.arc(px, py, r * 4, 0, Math.PI * 2);
-          ctx.fill();
-        }
       }
 
-      const shooting = shootingRef.current;
-      for (let i = shooting.length - 1; i >= 0; i--) {
-        const s = shooting[i];
-        s.x += s.vx;
-        s.y += s.vy;
-        s.life += 1;
-        if (s.life > s.maxLife || s.x > 1.2 || s.x < -0.2 || s.y > 1.2) {
-          shooting.splice(i, 1);
-          continue;
-        }
-        const lifeRatio = s.life / s.maxLife;
-        const alpha = Math.sin(lifeRatio * Math.PI);
-        const sx = s.x * width;
-        const sy = s.y * height;
-        const tailLen = 80;
-        const tailX = sx - s.vx * width * tailLen;
-        const tailY = sy - s.vy * height * tailLen;
-
-        const tailGrad = ctx.createLinearGradient(tailX, tailY, sx, sy);
-        tailGrad.addColorStop(0, "rgba(180, 220, 255, 0)");
-        tailGrad.addColorStop(1, `rgba(220, 240, 255, ${alpha})`);
-        ctx.strokeStyle = tailGrad;
-        ctx.lineWidth = s.size;
+      // === 节拍脉冲环 ===
+      if (beatPulseRef.current > 0.1) {
+        const pulseRadius = Math.min(width, height) * (0.3 + (1 - beatPulseRef.current) * 0.2);
+        const pulseAlpha = beatPulseRef.current * 0.15;
         ctx.beginPath();
-        ctx.moveTo(tailX, tailY);
-        ctx.lineTo(sx, sy);
+        ctx.arc(width / 2, height * 0.42, pulseRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = `hsla(260, 80%, 75%, ${pulseAlpha})`;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(sx, sy, s.size * 1.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        ctx.fill();
       }
 
-      beatPulseRef.current *= 0.88;
+      // 衰减
+      beatPulseRef.current *= 0.9;
       if (beatPulseRef.current < 0.01) beatPulseRef.current = 0;
-
-      if (flashRef.current > 0.01) {
-        ctx.fillStyle = `rgba(200, 220, 255, ${flashRef.current})`;
-        ctx.fillRect(0, 0, width, height);
-        flashRef.current *= 0.82;
-      }
-
-      if (playing && a.level < 0.05) {
-        ctx.fillStyle = "rgba(10, 15, 40, 0.06)";
-        ctx.fillRect(0, 0, width, height);
-      }
 
       rafRef.current = requestAnimationFrame(render);
     };
