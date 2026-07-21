@@ -40,14 +40,15 @@ export default function SongItem({
       whileTap={{ scale: 0.985 }}
       onClick={handleClick}
       className={cn(
-        "group flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5",
-        "transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
-        isActive && "bg-accent/8 dark:bg-accent/12"
+        "group flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 font-sans",
+        "transition-colors hover:bg-white/[0.06]",
+        isActive && "bg-accent/12"
       )}
+      style={{ WebkitFontSmoothing: "antialiased" }}
     >
       {/* 序号或封面 */}
       {showIndex && typeof index === "number" ? (
-        <div className="flex h-12 w-8 items-center justify-center text-sm text-ink-subtle">
+        <div className="flex h-12 w-8 items-center justify-center text-sm text-white/50">
           {isActive && isPlaying ? (
             <div className="flex h-3.5 items-end gap-[2px]">
               <span className="w-[2px] animate-pulse-soft bg-accent" style={{ height: "100%" }} />
@@ -74,16 +75,16 @@ export default function SongItem({
         <div
           className={cn(
             "text-truncate text-[15px] font-medium leading-tight",
-            isActive ? "text-accent" : "text-ink"
+            isActive ? "text-accent" : "text-white"
           )}
         >
           {song.title}
         </div>
-        <div className="text-truncate mt-0.5 text-xs text-ink-muted">
+        <div className="text-truncate mt-0.5 text-xs text-white/60">
           {song.artist}
           {song.album && song.album !== "未知" && (
             <>
-              <span className="mx-1 text-ink-subtle/60">·</span>
+              <span className="mx-1 text-white/40">·</span>
               {song.album}
             </>
           )}
@@ -92,7 +93,7 @@ export default function SongItem({
 
       {/* 时长 */}
       {song.duration > 0 && (
-        <div className="text-xs tabular-nums text-ink-subtle">
+        <div className="text-xs tabular-nums text-white/50">
           {formatTime(song.duration)}
         </div>
       )}
@@ -106,7 +107,7 @@ export default function SongItem({
             onMore(song);
           }}
           aria-label="更多操作"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-ink-subtle transition-colors hover:bg-black/5 hover:text-ink dark:hover:bg-white/10"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
         >
           <MoreHorizontal className="h-5 w-5" />
         </button>

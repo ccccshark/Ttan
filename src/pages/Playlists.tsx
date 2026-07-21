@@ -185,13 +185,13 @@ export default function Playlists() {
       .filter((s): s is Song => !!s);
 
     return (
-      <div className="min-h-screen pb-28">
-        <div className="glass glass-light sticky top-0 z-30 px-4 pb-3" style={{ paddingTop: `${statusBarHeight}px` }}>
+      <div className="min-h-screen pb-28 bg-[#05060f] font-sans" style={{ WebkitFontSmoothing: "antialiased" }}>
+        <div className="sticky top-0 z-30 px-4 pb-3 bg-[#0a0c1a]/95 backdrop-blur-lg" style={{ paddingTop: `${statusBarHeight}px` }}>
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={handleBackFromPlaylist}>
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 text-white" />
             </IconButton>
-            <h1 className="flex-1 text-truncate text-lg font-bold text-ink">
+            <h1 className="flex-1 text-truncate text-lg font-bold text-white">
               {selectedPlaylist.name}
             </h1>
             <button
@@ -211,7 +211,7 @@ export default function Playlists() {
         </div>
 
         <div className="mx-auto max-w-[480px] px-4 pt-3">
-          <div className="mb-4 flex items-center gap-4 rounded-2xl bg-white p-4 shadow-card dark:bg-surface-card">
+          <div className="mb-4 flex items-center gap-4 rounded-2xl bg-white/[0.04] p-4 backdrop-blur-sm">
             <CoverArt
               src={playlistSongs[0]?.coverUrl}
               alt={selectedPlaylist.name}
@@ -219,10 +219,10 @@ export default function Playlists() {
               rounded="lg"
             />
             <div className="min-w-0 flex-1">
-              <h2 className="text-truncate text-xl font-bold text-ink">
+              <h2 className="text-truncate text-xl font-bold text-white">
                 {selectedPlaylist.name}
               </h2>
-              <p className="mt-1 text-sm text-ink-muted">
+              <p className="mt-1 text-sm text-white/70">
                 {playlistSongs.length} 首歌曲
               </p>
               <button
@@ -237,7 +237,7 @@ export default function Playlists() {
               <button
                 type="button"
                 onClick={() => setShowAddSongs(true)}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/6 px-4 py-1.5 text-sm font-medium text-ink-muted backdrop-blur-md transition-colors hover:bg-white/12 dark:bg-white/10 dark:text-white/70"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/6 px-4 py-1.5 text-sm font-medium text-white/70 backdrop-blur-md transition-colors hover:bg-white/12"
               >
                 <Plus className="h-4 w-4" />
                 添加歌曲
@@ -256,7 +256,7 @@ export default function Playlists() {
                 <button
                   type="button"
                   onClick={() => setShowAddSongs(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/6 px-4 py-1.5 text-sm font-medium text-ink-muted backdrop-blur-md transition-colors hover:bg-white/12 dark:bg-white/10 dark:text-white/70"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/6 px-4 py-1.5 text-sm font-medium text-white/70 backdrop-blur-md transition-colors hover:bg-white/12"
                 >
                   <Plus className="h-4 w-4" />
                   添加歌曲
@@ -278,20 +278,20 @@ export default function Playlists() {
   // 专辑详情视图
   if (selectedAlbum) {
     return (
-      <div className="min-h-screen pb-28">
-        <div className="glass glass-light sticky top-0 z-30 px-4 pb-3" style={{ paddingTop: `${statusBarHeight}px` }}>
+      <div className="min-h-screen pb-28 bg-[#05060f] font-sans" style={{ WebkitFontSmoothing: "antialiased" }}>
+        <div className="sticky top-0 z-30 px-4 pb-3 bg-[#0a0c1a]/95 backdrop-blur-lg" style={{ paddingTop: `${statusBarHeight}px` }}>
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={() => setSelectedAlbum(null)}>
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 text-white" />
             </IconButton>
-            <h1 className="flex-1 text-truncate text-lg font-bold text-ink">
+            <h1 className="flex-1 text-truncate text-lg font-bold text-white">
               {selectedAlbum.name}
             </h1>
           </div>
         </div>
 
         <div className="mx-auto max-w-[480px] px-4 pt-3">
-          <div className="mb-4 flex items-center gap-4 rounded-2xl bg-white p-4 shadow-card dark:bg-surface-card">
+          <div className="mb-4 flex items-center gap-4 rounded-2xl bg-white/[0.04] p-4 backdrop-blur-sm">
             <CoverArt
               src={selectedAlbum.coverUrl}
               alt={selectedAlbum.name}
@@ -299,11 +299,11 @@ export default function Playlists() {
               rounded="lg"
             />
             <div className="min-w-0 flex-1">
-              <h2 className="text-truncate text-xl font-bold text-ink">
+              <h2 className="text-truncate text-xl font-bold text-white">
                 {selectedAlbum.name}
               </h2>
-              <p className="mt-1 text-sm text-ink-muted">{selectedAlbum.artist}</p>
-              <p className="mt-0.5 text-xs text-ink-subtle">
+              <p className="mt-1 text-sm text-white/70">{selectedAlbum.artist}</p>
+              <p className="mt-0.5 text-xs text-white/50">
                 {selectedAlbum.songs.length} 首歌曲
               </p>
               <button
@@ -343,13 +343,13 @@ export default function Playlists() {
       artistAlbums.get(name)!.push(s);
     }
     return (
-      <div className="min-h-screen pb-28">
-        <div className="glass glass-light sticky top-0 z-30 px-4 pb-3" style={{ paddingTop: `${statusBarHeight}px` }}>
+      <div className="min-h-screen pb-28 bg-[#05060f] font-sans" style={{ WebkitFontSmoothing: "antialiased" }}>
+        <div className="sticky top-0 z-30 px-4 pb-3 bg-[#0a0c1a]/95 backdrop-blur-lg" style={{ paddingTop: `${statusBarHeight}px` }}>
           <div className="flex items-center gap-2">
             <IconButton ariaLabel="返回" onClick={() => setSelectedArtist(null)}>
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 text-white" />
             </IconButton>
-            <h1 className="flex-1 text-truncate text-lg font-bold text-ink">
+            <h1 className="flex-1 text-truncate text-lg font-bold text-white">
               {selectedArtist.name}
             </h1>
           </div>
@@ -357,13 +357,13 @@ export default function Playlists() {
 
         <div className="mx-auto max-w-[480px] px-4 pt-3">
           {/* 艺人头部 */}
-          <div className="mb-4 flex flex-col items-center gap-3 rounded-2xl bg-white p-5 text-center shadow-card dark:bg-surface-card">
+          <div className="mb-4 flex flex-col items-center gap-3 rounded-2xl bg-white/[0.04] p-5 text-center backdrop-blur-sm">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent/10 text-2xl font-bold text-accent">
               {selectedArtist.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-ink">{selectedArtist.name}</h2>
-              <p className="mt-1 text-xs text-ink-muted">
+              <h2 className="text-xl font-bold text-white">{selectedArtist.name}</h2>
+              <p className="mt-1 text-xs text-white/70">
                 {selectedArtist.songs.length} 首歌曲 · {selectedArtist.albumCount} 张专辑
               </p>
             </div>
@@ -380,7 +380,7 @@ export default function Playlists() {
           {/* 专辑列表 */}
           {artistAlbums.size > 1 && (
             <div className="mb-4">
-              <h3 className="mb-2 px-1 text-sm font-bold text-ink">专辑</h3>
+              <h3 className="mb-2 px-1 text-sm font-bold text-white">专辑</h3>
               <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
                 {Array.from(artistAlbums.entries()).map(([name, list]) => (
                   <motion.button
@@ -405,10 +405,10 @@ export default function Playlists() {
                       rounded="lg"
                       className="!w-full !h-auto aspect-square shadow-cover"
                     />
-                    <div className="mt-1.5 text-truncate text-xs font-semibold text-ink">
+                    <div className="mt-1.5 text-truncate text-xs font-semibold text-white">
                       {name}
                     </div>
-                    <div className="text-[11px] text-ink-muted">
+                    <div className="text-[11px] text-white/70">
                       {list.length} 首
                     </div>
                   </motion.button>
@@ -418,7 +418,7 @@ export default function Playlists() {
           )}
 
           {/* 全部歌曲 */}
-          <h3 className="mb-2 px-1 text-sm font-bold text-ink">全部歌曲</h3>
+          <h3 className="mb-2 px-1 text-sm font-bold text-white">全部歌曲</h3>
           <div className="space-y-0.5">
             {selectedArtist.songs.map((song, i) => (
               <SongItem
@@ -435,12 +435,12 @@ export default function Playlists() {
   }
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-28 bg-[#05060f] font-sans" style={{ WebkitFontSmoothing: "antialiased" }}>
       <AppBar title="音乐库" subtitle={`${songs.length} 首本地歌曲`} showSearch={false} />
 
       <div className="mx-auto max-w-[480px] px-4 pt-3">
         {/* Tab 切换 */}
-        <div className="no-scrollbar mb-4 flex gap-1 overflow-x-auto rounded-full bg-black/5 p-1 dark:bg-white/8">
+        <div className="no-scrollbar mb-4 flex gap-1 overflow-x-auto rounded-full bg-white/[0.06] p-1">
           {([
             { key: "all", label: "全部" },
             { key: "recent", label: "最近" },
@@ -457,7 +457,7 @@ export default function Playlists() {
                 "relative shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
                 tab === t.key
                   ? "text-white"
-                  : "text-ink-muted hover:text-ink"
+                  : "text-white/60 hover:text-white"
               )}
             >
               {tab === t.key && (
@@ -489,7 +489,7 @@ export default function Playlists() {
               ) : (
                 <>
                   <div className="mb-2 flex items-center justify-between px-2">
-                    <span className="text-xs text-ink-muted">
+                    <span className="text-xs text-white/60">
                       共 {songs.length} 首
                     </span>
                     <button
@@ -526,7 +526,7 @@ export default function Playlists() {
                 />
               ) : (
                 <>
-                  <div className="mb-2 px-2 text-xs text-ink-muted">
+                  <div className="mb-2 px-2 text-xs text-white/60">
                     最近播放 {recentSongs.length} 首
                   </div>
                   <div className="space-y-0.5">
@@ -559,7 +559,7 @@ export default function Playlists() {
                 />
               ) : (
                 <>
-                  <div className="mb-2 px-2 text-xs text-ink-muted">
+                  <div className="mb-2 px-2 text-xs text-white/60">
                     共 {albums.length} 张专辑
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -582,10 +582,10 @@ export default function Playlists() {
                           className="!w-full !h-auto aspect-square shadow-cover"
                         />
                         <div className="min-w-0">
-                          <div className="text-truncate text-sm font-semibold text-ink">
+                          <div className="text-truncate text-sm font-semibold text-white">
                             {album.name}
                           </div>
-                          <div className="text-truncate text-xs text-ink-muted">
+                          <div className="text-truncate text-xs text-white/70">
                             {album.artist}
                           </div>
                         </div>
@@ -612,7 +612,7 @@ export default function Playlists() {
                 />
               ) : (
                 <>
-                  <div className="mb-2 px-2 text-xs text-ink-muted">
+                  <div className="mb-2 px-2 text-xs text-white/60">
                     共 {artists.length} 位艺人
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -625,16 +625,16 @@ export default function Playlists() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: Math.min(i * 0.03, 0.3) }}
                         whileTap={{ scale: 0.97 }}
-                        className="flex flex-col items-center gap-2 rounded-2xl bg-white p-3 text-center shadow-card dark:bg-surface-card"
+                        className="flex flex-col items-center gap-2 rounded-2xl bg-white/[0.04] p-3 text-center backdrop-blur-sm"
                       >
                         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent/10 text-2xl font-bold text-accent">
                           {artist.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 w-full">
-                          <div className="text-truncate text-sm font-semibold text-ink">
+                          <div className="text-truncate text-sm font-semibold text-white">
                             {artist.name}
                           </div>
-                          <div className="text-xs text-ink-muted">
+                          <div className="text-xs text-white/70">
                             {artist.songs.length} 首 · {artist.albumCount} 张专辑
                           </div>
                         </div>
@@ -662,7 +662,7 @@ export default function Playlists() {
               ) : (
                 <>
                   <div className="mb-2 flex items-center justify-between px-2">
-                    <span className="text-xs text-ink-muted">
+                    <span className="text-xs text-white/60">
                       {favorites.length} 首收藏
                     </span>
                     <button
@@ -699,14 +699,14 @@ export default function Playlists() {
               <button
                 type="button"
                 onClick={() => setShowCreate(true)}
-                className="mb-3 flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-black/15 p-4 text-ink transition-colors hover:border-accent hover:bg-accent/5 dark:border-white/15 dark:hover:border-accent"
+                className="mb-3 flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-white/20 p-4 text-white transition-colors hover:border-accent hover:bg-accent/5"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/12 text-accent">
                   <Plus className="h-5 w-5" />
                 </div>
                 <div className="text-left">
                   <div className="text-sm font-semibold">新建歌单</div>
-                  <div className="text-xs text-ink-muted">创建属于你的精选合集</div>
+                  <div className="text-xs text-white/60">创建属于你的精选合集</div>
                 </div>
               </button>
 
@@ -729,7 +729,7 @@ export default function Playlists() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.04 }}
                         whileTap={{ scale: 0.97 }}
-                        className="flex flex-col gap-2 rounded-2xl bg-white p-3 text-left shadow-card dark:bg-surface-card"
+                        className="flex flex-col gap-2 rounded-2xl bg-white/[0.04] p-3 text-left backdrop-blur-sm"
                       >
                         <CoverArt
                           src={first?.coverUrl}
@@ -739,10 +739,10 @@ export default function Playlists() {
                           className="w-full"
                         />
                         <div className="min-w-0">
-                          <div className="text-truncate text-sm font-semibold text-ink">
+                          <div className="text-truncate text-sm font-semibold text-white">
                             {p.name}
                           </div>
-                          <div className="text-xs text-ink-muted">
+                          <div className="text-xs text-white/70">
                             {p.songIds.length} 首
                           </div>
                         </div>
@@ -773,20 +773,20 @@ export default function Playlists() {
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-[#1a1d2e] sm:rounded-3xl"
+              className="relative z-10 w-full max-w-md rounded-t-3xl bg-[#0f1120] p-6 shadow-2xl sm:rounded-3xl"
             >
-              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/10 dark:bg-white/10 sm:hidden" />
-              
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/10 sm:hidden" />
+
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-accent/20 to-accent/5">
                   <ListMusic className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-ink dark:text-white">新建歌单</h3>
-                  <p className="text-xs text-ink-muted">创建你的精选合集</p>
+                  <h3 className="text-lg font-bold text-white">新建歌单</h3>
+                  <p className="text-xs text-white/60">创建你的精选合集</p>
                 </div>
               </div>
-              
+
               <div className="relative mb-5">
                 <input
                   type="text"
@@ -797,24 +797,24 @@ export default function Playlists() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void handleCreate();
                   }}
-                  className="w-full rounded-2xl border border-black/10 bg-black/[0.03] px-4 py-3.5 text-base font-medium text-ink outline-none transition-colors focus:border-accent focus:bg-accent/5 dark:border-white/10 dark:bg-white/[0.05] dark:text-white dark:focus:bg-accent/10"
+                  className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3.5 text-base font-medium text-white outline-none transition-colors focus:border-accent focus:bg-accent/10"
                 />
                 {newName.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setNewName("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full bg-black/10 text-ink-muted hover:bg-black/20 dark:bg-white/10 dark:text-white/50"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-white/50 hover:bg-white/20"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
-                  className="flex-1 rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold text-ink-muted transition-colors hover:bg-black/[0.1] dark:bg-white/[0.08] dark:text-white/60 dark:hover:bg-white/[0.12]"
+                  className="flex-1 rounded-2xl bg-white/[0.08] py-3 text-sm font-semibold text-white/60 transition-colors hover:bg-white/[0.12]"
                 >
                   取消
                 </button>
@@ -848,13 +848,13 @@ export default function Playlists() {
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-4 shadow-2xl dark:bg-[#1a1d2e] sm:rounded-3xl"
+              className="relative z-10 w-full max-w-md rounded-t-3xl bg-[#0f1120] p-4 shadow-2xl sm:rounded-3xl"
             >
-              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/10 dark:bg-white/10 sm:hidden" />
-              <h3 className="mb-3 text-base font-bold text-ink dark:text-white">添加歌曲到歌单</h3>
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/10 sm:hidden" />
+              <h3 className="mb-3 text-base font-bold text-white">添加歌曲到歌单</h3>
               <div className="max-h-[50vh] overflow-y-auto thin-scrollbar">
                 {availableSongs.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-ink-muted">所有歌曲已添加</div>
+                  <div className="py-8 text-center text-sm text-white/60">所有歌曲已添加</div>
                 ) : (
                   availableSongs.map((song) => (
                     <button
@@ -863,12 +863,12 @@ export default function Playlists() {
                       onClick={() => {
                         void addToPlaylist(selectedPlaylist.id, [song.id]);
                       }}
-                      className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/8"
+                      className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-white/8"
                     >
                       <CoverArt src={song.coverUrl} alt={song.title} size={40} rounded="sm" />
                       <div className="min-w-0 flex-1">
-                        <div className="text-truncate text-sm font-medium text-ink dark:text-white">{song.title}</div>
-                        <div className="text-truncate text-xs text-ink-muted">{song.artist}</div>
+                        <div className="text-truncate text-sm font-medium text-white">{song.title}</div>
+                        <div className="text-truncate text-xs text-white/60">{song.artist}</div>
                       </div>
                       <Plus className="h-4 w-4 text-accent" />
                     </button>
@@ -878,7 +878,7 @@ export default function Playlists() {
               <button
                 type="button"
                 onClick={() => setShowAddSongs(false)}
-                className="mt-3 w-full rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold text-ink-muted dark:bg-white/[0.08] dark:text-white/60"
+                className="mt-3 w-full rounded-2xl bg-white/[0.08] py-3 text-sm font-semibold text-white/60"
               >
                 完成
               </button>

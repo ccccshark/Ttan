@@ -117,6 +117,32 @@ export default function About() {
           </p>
         </motion.section>
 
+        {/* 免责声明 */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="mt-4 overflow-hidden rounded-3xl border border-rose-500/20 bg-rose-500/5 p-5"
+        >
+          <h3 className="mb-2 text-sm font-bold text-rose-600 dark:text-rose-400">
+            ⚠️ 免责声明
+          </h3>
+          <div className="text-xs leading-relaxed text-ink-muted dark:text-white/60">
+            <p className="mb-2">
+              Ttan 是一款本地音乐播放器，仅供个人学习和研究使用。
+            </p>
+            <p className="mb-2">
+              本应用不提供任何在线音乐服务，不存储、传输或分发任何音乐文件。所有音乐文件均来自用户本地设备。
+            </p>
+            <p className="mb-2">
+              用户应确保所播放的音乐文件来源合法，并拥有相应的使用权。如因使用本应用播放未经授权的音乐文件而产生任何法律责任，由用户自行承担。
+            </p>
+            <p>
+              本应用代码开源于 GitHub，遵循 MIT 许可证，欢迎学习交流。
+            </p>
+          </div>
+        </motion.section>
+
         {/* 开源链接 */}
         <motion.a
           href="https://github.com/ccccshark/Ttan"

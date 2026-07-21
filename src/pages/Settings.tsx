@@ -184,6 +184,60 @@ export default function Settings() {
     showToast("已清空音乐库");
   };
 
+  // 扫描文件夹添加歌曲
+  const { addFiles } = useLibraryStore();
+
+  const handleScanFolder = async () => {
+    try {
+      // Web: 使用 File System Access API
+      const showDirectoryPicker = (window as unknown as Record<string, unknown>).showDirectoryPicker;
+      if (typeof showDirectoryPicker === "function") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const dirHandle = await (showDirectoryPicker as () => Promise<any>)();
+        const files: File[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for await (const entry of (dirHandle as any).values()) {
+          if (entry.kind === "file") {
+            const file = await entry.getFile();
+            if (/\.(mp3|flac|ogg|m4a|wav|aac)$/i.test(file.name)) {
+              files.push(file);
+            }
+          }
+        }
+        if (files.length > 0) {
+          await addFiles(files);
+          showToast(`扫描到 ${files.length} 首歌曲，已添加到音乐库`);
+        } else {
+          showToast("未扫描到音频文件");
+        }
+      } else {
+        // Fallback: 使用文件夹输入
+        const input = document.createElement("input");
+        input.type = "file";
+        (input as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true;
+        input.multiple = true;
+        input.accept = "audio/*";
+        input.onchange = async (e) => {
+          const fileList = (e.target as HTMLInputElement).files;
+          if (!fileList) return;
+          const files = Array.from(fileList).filter((f) =>
+            /\.(mp3|flac|ogg|m4a|wav|aac)$/i.test(f.name)
+          );
+          if (files.length > 0) {
+            await addFiles(files);
+            showToast(`扫描到 ${files.length} 首歌曲，已添加到音乐库`);
+          } else {
+            showToast("未扫描到音频文件");
+          }
+        };
+        input.click();
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("扫描失败");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface-subtle pb-28 dark:bg-surface-dark">
       {/* 顶部导航 */}
@@ -708,6 +762,14 @@ export default function Settings() {
 
         {/* ========== 音乐库 ========== */}
         <SettingsCard title="音乐库" icon={<Library className="h-3.5 w-3.5" />}>
+          <Row
+            title="扫描本地歌曲"
+            subtitle="选择文件夹扫描并添加到音乐库"
+            onClick={handleScanFolder}
+            chevron
+            trailing={<Upload className="h-4 w-4 text-ink-subtle" />}
+          />
+
           <Row title="最小时长过滤" subtitle="短于此值的音频不显示">
             <Slider
               value={settings.minDurationSec}

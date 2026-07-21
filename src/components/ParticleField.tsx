@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AudioAnalysis } from "@/hooks/useAudioAnalyser";
+import { cn } from "@/lib/utils";
 
 // 极光粒子系统 - 参考 Spotify / Apple Music 风格
 // 多层渐变雾气 + 流动光带 + 漂浮微粒 + 节拍脉冲
@@ -287,11 +288,19 @@ export default function ParticleField({
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      style={{ display: "block", width: "100%", height: "100%", position: "absolute", inset: 0 }}
-      aria-hidden="true"
-    />
+    <>
+      {/* Fallback: canvas 初始化前显示静态背景 */}
+      {!initialized && (
+        <div
+          className={cn("absolute inset-0 -z-20 bg-gradient-to-b from-slate-950 via-[#05060f] to-black", className)}
+          aria-hidden="true"
+        />
+      )}
+      <canvas
+        ref={canvasRef}
+        className={cn("absolute inset-0 -z-10 block h-full w-full", className)}
+        aria-hidden="true"
+      />
+    </>
   );
 }

@@ -63,6 +63,7 @@ export default function NowPlaying() {
   const analysis = useAudioAnalyser(isPlaying && !!currentSong);
   const settings = useSettingsStore((s) => s.settings);
   const toggleFavorite = useLibraryStore((s) => s.toggleFavorite);
+  const songs = useLibraryStore((s) => s.songs);
   const statusBarHeight = useStatusBarHeight();
 
   // 动态取色：从封面提取主色注入 CSS 变量
@@ -216,7 +217,7 @@ export default function NowPlaying() {
   };
 
   const hasLyrics = !!currentSong.lyrics;
-  const isFavorite = !!currentSong.favorite;
+  const isFavorite = currentSong ? !!songs.find((s) => s.id === currentSong.id)?.favorite : false;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-950 via-[#05060f] to-black text-white">
@@ -358,24 +359,24 @@ export default function NowPlaying() {
                 }}
                 transition={{ type: "spring", stiffness: 160, damping: 18 }}
               >
-                {/* 封面光晕 */}
+                {/* 封面光晕 - 更柔和宽广的效果 */}
                 <motion.div
-                  className="absolute -inset-4 -z-10 rounded-[36px]"
+                  className="absolute -inset-8 -z-10 rounded-[48px]"
                   animate={{
-                    opacity: isPlaying ? [0.3, 0.5, 0.3] : 0.2,
+                    opacity: isPlaying ? [0.4, 0.6, 0.4] : 0.25,
                     boxShadow: isPlaying
-                      ? `0 0 ${60 + analysis.bass * 80}px var(--accent-color, #FF6B35)`
-                      : "0 0 40px rgba(255,255,255,0.1)",
+                      ? `0 0 ${80 + analysis.bass * 100}px var(--accent-color, #FF6B35), 0 0 ${120 + analysis.bass * 150}px var(--accent-color, #FF6B35)`
+                      : "0 0 60px rgba(255,255,255,0.08), 0 0 100px rgba(255,255,255,0.04)",
                   }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 />
 
-                {/* 封面图 */}
-                <div className="relative rounded-[28px] overflow-hidden shadow-2xl">
+                {/* 封面图 - 更大尺寸、圆角、边框、阴影 */}
+                <div className="relative rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-white/15">
                   <CoverArt
                     src={currentSong.coverUrl}
                     alt={currentSong.title}
-                    size={290}
+                    size={320}
                     rounded="lg"
                     spinning={settings.coverStyle === "vinyl" && isPlaying}
                     className={cn(
@@ -385,8 +386,8 @@ export default function NowPlaying() {
                   />
                   {settings.coverStyle === "vinyl" && (
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <div className="h-14 w-14 rounded-full bg-[#05060f] ring-3 ring-black/30 flex items-center justify-center">
-                        <div className="h-2.5 w-2.5 rounded-full bg-white/25" />
+                      <div className="h-16 w-16 rounded-full bg-[#05060f] ring-3 ring-black/30 flex items-center justify-center">
+                        <div className="h-3 w-3 rounded-full bg-white/25" />
                       </div>
                     </div>
                   )}
