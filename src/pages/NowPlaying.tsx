@@ -355,32 +355,32 @@ export default function NowPlaying() {
               <motion.div
                 className="relative"
                 animate={{
-                  scale: isPlaying ? 1 : 0.98,
+                  scale: isPlaying ? 1.02 : 0.95,
                 }}
-                transition={{ type: "spring", stiffness: 160, damping: 18 }}
+                transition={{ type: "spring", stiffness: 120, damping: 20 }}
               >
                 {/* 封面光晕 - 更柔和宽广的效果 */}
                 <motion.div
-                  className="absolute -inset-8 -z-10 rounded-[48px]"
+                  className="absolute -inset-6 -z-10 rounded-[40px]"
                   animate={{
-                    opacity: isPlaying ? [0.4, 0.6, 0.4] : 0.25,
+                    opacity: isPlaying ? [0.4, 0.6, 0.4] : 0.15,
                     boxShadow: isPlaying
                       ? `0 0 ${80 + analysis.bass * 100}px var(--accent-color, #FF6B35), 0 0 ${120 + analysis.bass * 150}px var(--accent-color, #FF6B35)`
-                      : "0 0 60px rgba(255,255,255,0.08), 0 0 100px rgba(255,255,255,0.04)",
+                      : "0 0 40px rgba(255,255,255,0.08)",
                   }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 />
 
                 {/* 封面图 - 更大尺寸、圆角、边框、阴影 */}
-                <div className="relative rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-white/15">
+                <div className="relative rounded-[24px] overflow-hidden shadow-2xl ring-1 ring-white/10">
                   <CoverArt
                     src={currentSong.coverUrl}
                     alt={currentSong.title}
-                    size={320}
+                    size={300}
                     rounded="lg"
                     spinning={settings.coverStyle === "vinyl" && isPlaying}
                     className={cn(
-                      "ring-2 ring-white/10",
+                      "ring-1 ring-white/5",
                       settings.coverStyle === "vinyl" && "rounded-full"
                     )}
                   />
@@ -419,10 +419,10 @@ export default function NowPlaying() {
                 transition={{ delay: 0.2, duration: 0.5 }}
                 className="mt-8 w-full text-center"
               >
-                <h1 className="text-2xl font-bold tracking-tight">
+                <h1 className="text-[22px] font-bold tracking-tight">
                   {currentSong.title}
                 </h1>
-                <p className="mt-2 text-sm text-white/60">
+                <p className="mt-1.5 text-sm text-white/60">
                   {currentSong.artist}
                   {currentSong.album && currentSong.album !== "未知" && (
                     <>
@@ -434,20 +434,15 @@ export default function NowPlaying() {
 
                 {/* 技术标签 */}
                 {(currentSong.codec || currentSong.bitrate) && (
-                  <div className="mt-3 flex justify-center flex-wrap gap-1.5">
+                  <div className="mt-2.5 flex justify-center gap-1.5">
                     {currentSong.codec && (
-                      <span className="rounded-full bg-white/6 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/60 backdrop-blur-sm">
+                      <span className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/50">
                         {currentSong.codec}
                       </span>
                     )}
                     {currentSong.bitrate && (
-                      <span className="rounded-full bg-white/6 px-2.5 py-0.5 text-[10px] font-medium tabular-nums text-white/60 backdrop-blur-sm">
+                      <span className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] font-medium tabular-nums text-white/50">
                         {currentSong.bitrate} kbps
-                      </span>
-                    )}
-                    {currentSong.sampleRate && (
-                      <span className="rounded-full bg-white/6 px-2.5 py-0.5 text-[10px] font-medium tabular-nums text-white/60 backdrop-blur-sm">
-                        {(currentSong.sampleRate / 1000).toFixed(1)} kHz
                       </span>
                     )}
                   </div>

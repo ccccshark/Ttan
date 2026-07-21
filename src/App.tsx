@@ -17,6 +17,7 @@ import MyPage from "@/pages/MyPage";
 import MiniPlayer from "@/components/MiniPlayer";
 import BottomNav from "@/components/BottomNav";
 import SplashScreen from "@/components/SplashScreen";
+import BlurredBackground from "@/components/BlurredBackground";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useEqualizer } from "@/hooks/useEqualizer";
 import { useMediaSession } from "@/hooks/useMediaSession";
@@ -137,15 +138,14 @@ export default function App() {
   return (
     <Router>
       <div className="relative mx-auto min-h-screen max-w-[480px] bg-surface-subtle dark:bg-surface-dark">
+        {/* 高斯模糊动态背景 - 所有页面共享 */}
+        <BlurredBackground />
+        {/* 主内容始终渲染，启动页叠加在最上层，避免双重渲染 */}
+        <AnimatedRoutes />
+        <audio ref={audioRef} preload="metadata" />
         <AnimatePresence>
           {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
         </AnimatePresence>
-        {!showSplash && (
-          <>
-            <AnimatedRoutes />
-            <audio ref={audioRef} preload="metadata" />
-          </>
-        )}
       </div>
     </Router>
   );

@@ -102,6 +102,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         songs: [...get().songs, ...filtered],
         importState: "done",
       });
+
+      // 异步获取缺失歌词（不阻塞导入流程）
+      void fetchMissingLyrics(filtered);
     } catch (err) {
       console.error("导入失败:", err);
       set({ importState: "error" });
@@ -254,6 +257,29 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 }));
+
+// 异步获取缺失歌词
+async function fetchMissingLyrics(songs: Song[]) {
+  const { fetchLyricsForSong } = await import("@/utils/lyricsFetcher");
+  for (const song of songs) {
+    if (song.lyrics) continue;
+    try {
+      const lyrics = await fetchLyricsForSong(song);
+      if (lyrics) {
+        // 更新歌曲歌词
+        const updated = { ...song, lyrics };
+        await saveSong(updated).catch(() => {});
+        useLibraryStore.setState((state) => ({
+          songs: state.songs.map((s) => s.id === song.id ? updated : s)
+        }));
+      }
+    } catch {
+      // 忽略单首歌曲歌词获取失败
+    }
+    // 避免请求过快
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+}
 
 // 注册全局同步钩子：playerStore 切歌时调用
 (window as unknown as { __ttanLibSync?: (id: string, pc: PlayCount) => void }).__ttanLibSync = (id, pc) => {
