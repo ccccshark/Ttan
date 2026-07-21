@@ -18,6 +18,7 @@ import MiniPlayer from "@/components/MiniPlayer";
 import BottomNav from "@/components/BottomNav";
 import SplashScreen from "@/components/SplashScreen";
 import BlurredBackground from "@/components/BlurredBackground";
+import DisclaimerModal from "@/components/DisclaimerModal";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useEqualizer } from "@/hooks/useEqualizer";
 import { useMediaSession } from "@/hooks/useMediaSession";
@@ -91,6 +92,7 @@ export default function App() {
 
   const [showSplash, setShowSplash] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   useAudioPlayer(audioRef);
   useEqualizer();
@@ -133,6 +135,16 @@ export default function App() {
 
   const handleSplashFinish = () => {
     setShowSplash(false);
+    // 检查是否已同意免责声明
+    const accepted = localStorage.getItem("disclaimerAccepted");
+    if (!accepted) {
+      setShowDisclaimer(true);
+    }
+  };
+
+  const handleAcceptDisclaimer = () => {
+    localStorage.setItem("disclaimerAccepted", "true");
+    setShowDisclaimer(false);
   };
 
   return (
@@ -145,6 +157,7 @@ export default function App() {
         <audio ref={audioRef} preload="metadata" />
         <AnimatePresence>
           {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
+          {showDisclaimer && <DisclaimerModal onAccept={handleAcceptDisclaimer} />}
         </AnimatePresence>
       </div>
     </Router>

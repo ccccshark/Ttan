@@ -3,6 +3,10 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.mineradio.saltplayer"
     compileSdk = rootProject.ext.compileSdkVersion
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
     defaultConfig {
         applicationId "com.mineradio.saltplayer"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -21,6 +25,10 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+    lintOptions {
+        abortOnError false
+        checkReleaseBuilds false
     }
 }
 

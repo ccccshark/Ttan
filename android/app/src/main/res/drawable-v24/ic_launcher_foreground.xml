@@ -4,15 +4,20 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- 白色音符图标，居中（80% safe zone: 27-81） -->
-    <group
-        android:scaleX="0.55"
-        android:scaleY="0.55"
-        android:translateX="24.3"
-        android:translateY="24.3">
-        <path
-            android:fillColor="#FFFFFF"
-            android:fillType="evenOdd"
-            android:pathData="M40.5,21.6 L40.5,69.3 A12.4,12.4 0 1,1 33.3,57.7 L33.3,33.3 L69.3,24.4 L69.3,54.6 A12.4,12.4 0 1,1 62.1,43.0 L62.1,17.1 A6.0,6.0 0 0,0 54.8,11.3 L46.4,13.4A6.0,6.0 0 0,0 40.5,19.0 Z" />
-    </group>
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M54,20 L54,84 L84,54 Z" />
+    <path
+        android:fillColor="#05060f"
+        android:pathData="M54,54m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M54,40 L54,68 L70,54 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M54,54m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.8"
+        android:pathData="M54,54m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
 </vector>

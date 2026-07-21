@@ -10,11 +10,13 @@ import {
   Hand,
   Headphones,
   Library,
+  Loader2,
   Mic2,
   Music,
   Palette,
   Play,
   RotateCcw,
+  Scan,
   Sliders,
   Trash2,
   Upload,
@@ -49,6 +51,14 @@ import {
   clearPlayCounts,
   type BackupData,
 } from "@/utils/db";
+import { scanLocalMusic } from "@/utils/scanLocal";
+
+const isCapacitor = (() => {
+  const cap = (window as unknown as Record<string, unknown>).Capacitor;
+  if (!cap || typeof cap !== "object") return false;
+  const isNative = (cap as Record<string, unknown>).isNativePlatform;
+  return typeof isNative === "function" ? !!isNative() : !!isNative;
+})();
 import { cn } from "@/lib/utils";
 
 export default function Settings() {
@@ -186,41 +196,66 @@ export default function Settings() {
 
   // 扫描文件夹添加歌曲
   const { addFiles } = useLibraryStore();
+  const [scanProgress, setScanProgress] = useState<number | null>(null);
 
   const handleScanFolder = async () => {
     try {
-      // 创建文件输入元素，支持选择多个音频文件
-      const input = document.createElement("input");
-      input.type = "file";
-      input.multiple = true;
-      input.accept = "audio/*,.mp3,.flac,.ogg,.m4a,.wav,.aac,.ape,.wv,.opus";
-
-      input.onchange = async (e) => {
-        const fileList = (e.target as HTMLInputElement).files;
-        if (!fileList || fileList.length === 0) return;
-
-        const files = Array.from(fileList).filter((f) =>
-          /\.(mp3|flac|ogg|m4a|wav|aac|ape|wv|opus|oga)$/i.test(f.name)
-        );
-
-        if (files.length === 0) {
-          showToast("未选择有效的音频文件");
-          return;
-        }
-
+      if (isCapacitor) {
+        setScanProgress(0);
         setBusy(true);
         try {
+          const files = await scanLocalMusic((progress) => {
+            const pct = progress.total > 0 ? Math.round((progress.scanned / progress.total) * 100) : 0;
+            setScanProgress(pct);
+          });
+
+          if (files.length === 0) {
+            showToast("未找到音频文件");
+            return;
+          }
+
           await addFiles(files);
-          showToast(`成功导入 ${files.length} 首歌曲`);
+          showToast(`成功扫描并导入 ${files.length} 首歌曲`);
         } catch (err) {
           console.error(err);
-          showToast("导入失败");
+          showToast("扫描失败，请检查存储权限");
         } finally {
           setBusy(false);
+          setScanProgress(null);
         }
-      };
+      } else {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.multiple = true;
+        input.accept = "audio/*,.mp3,.flac,.ogg,.m4a,.wav,.aac,.ape,.wv,.opus";
 
-      input.click();
+        input.onchange = async (e) => {
+          const fileList = (e.target as HTMLInputElement).files;
+          if (!fileList || fileList.length === 0) return;
+
+          const files = Array.from(fileList).filter((f) =>
+            /\.(mp3|flac|ogg|m4a|wav|aac|ape|wv|opus|oga)$/i.test(f.name)
+          );
+
+          if (files.length === 0) {
+            showToast("未选择有效的音频文件");
+            return;
+          }
+
+          setBusy(true);
+          try {
+            await addFiles(files);
+            showToast(`成功导入 ${files.length} 首歌曲`);
+          } catch (err) {
+            console.error(err);
+            showToast("导入失败");
+          } finally {
+            setBusy(false);
+          }
+        };
+
+        input.click();
+      }
     } catch (err) {
       console.error(err);
       showToast("扫描失败");
@@ -753,10 +788,14 @@ export default function Settings() {
         <SettingsCard title="音乐库" icon={<Library className="h-3.5 w-3.5" />}>
           <Row
             title="扫描本地歌曲"
-            subtitle="选择本地音频文件导入音乐库"
-            onClick={handleScanFolder}
-            chevron
-            trailing={<Upload className="h-4 w-4 text-ink-subtle" />}
+            subtitle={scanProgress !== null ? `正在扫描... ${scanProgress}%` : "自动扫描设备中的音频文件"}
+            onClick={scanProgress !== null ? undefined : handleScanFolder}
+            chevron={scanProgress === null}
+            trailing={scanProgress !== null ? (
+              <Loader2 className="h-4 w-4 text-accent animate-spin" />
+            ) : (
+              <Scan className="h-4 w-4 text-ink-subtle" />
+            )}
           />
 
           <Row title="最小时长过滤" subtitle="短于此值的音频不显示">

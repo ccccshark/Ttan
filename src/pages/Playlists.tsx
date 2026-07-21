@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -16,7 +16,6 @@ import {
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
 import { useStatusBarHeight } from "@/hooks/useStatusBarHeight";
-import AppBar from "@/components/AppBar";
 import SongItem from "@/components/SongItem";
 import EmptyState from "@/components/EmptyState";
 import CoverArt from "@/components/CoverArt";
@@ -44,6 +43,7 @@ interface ArtistGroup {
 
 export default function Playlists() {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const playlistId = params.get("playlistId");
   
   const tab = (params.get("tab") as Tab) ?? "all";
@@ -272,6 +272,63 @@ export default function Playlists() {
             </div>
           )}
         </div>
+
+        {/* 添加歌曲到歌单弹窗 */}
+        <AnimatePresence>
+          {showAddSongs && selectedPlaylist && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6"
+              onClick={() => setShowAddSongs(false)}
+            >
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+              <motion.div
+                initial={{ y: "100%", opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative z-10 w-full max-w-md rounded-t-3xl bg-[#0f1120] p-4 shadow-2xl sm:rounded-3xl"
+              >
+                <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/[0.04] dark:bg-white/10 sm:hidden" />
+                <h3 className="mb-3 text-base font-bold text-ink dark:text-white">添加歌曲到歌单</h3>
+                <div className="max-h-[50vh] overflow-y-auto thin-scrollbar">
+                  {availableSongs.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-ink-muted dark:text-white/60">所有歌曲已添加</div>
+                  ) : (
+                    availableSongs.map((song) => (
+                      <button
+                      key={song.id}
+                      type="button"
+                      onClick={() => {
+                        void addToPlaylist(selectedPlaylist.id, [song.id]);
+                        setShowAddSongs(false);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/8"
+                    >
+                        <CoverArt src={song.coverUrl} alt={song.title} size={40} rounded="sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-truncate text-sm font-medium text-ink dark:text-white">{song.title}</div>
+                          <div className="text-truncate text-xs text-ink-muted dark:text-white/60">{song.artist}</div>
+                        </div>
+                        <Plus className="h-4 w-4 text-accent" />
+                      </button>
+                    ))
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddSongs(false)}
+                  className="mt-3 w-full rounded-2xl bg-white/[0.08] py-3 text-sm font-semibold text-ink-muted dark:text-white/60"
+                >
+                  完成
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -437,7 +494,14 @@ export default function Playlists() {
 
   return (
     <div className="min-h-screen pb-28 bg-surface-subtle dark:bg-[#05060f] font-sans" style={{ WebkitFontSmoothing: "antialiased" }}>
-      <AppBar title="音乐库" subtitle={`${songs.length} 首本地歌曲`} showSearch={false} />
+      <div className="sticky top-0 z-30 px-4 pb-3 bg-[#0a0c1a]/95 backdrop-blur-lg" style={{ paddingTop: `${statusBarHeight}px` }}>
+        <div className="flex items-center gap-2">
+          <IconButton ariaLabel="返回" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-5 w-5 text-ink dark:text-white" />
+          </IconButton>
+          <h1 className="flex-1 text-truncate text-lg font-bold text-ink dark:text-white">音乐库</h1>
+        </div>
+      </div>
 
       <div className="mx-auto max-w-[480px] px-4 pt-3">
         {/* Tab 切换 */}
@@ -832,61 +896,6 @@ export default function Playlists() {
         )}
       </AnimatePresence>
 
-      {/* 添加歌曲到歌单弹窗 */}
-      <AnimatePresence>
-        {showAddSongs && selectedPlaylist && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6"
-            onClick={() => setShowAddSongs(false)}
-          >
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
-            <motion.div
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative z-10 w-full max-w-md rounded-t-3xl bg-[#0f1120] p-4 shadow-2xl sm:rounded-3xl"
-            >
-              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/[0.04] dark:bg-white/10 sm:hidden" />
-              <h3 className="mb-3 text-base font-bold text-ink dark:text-white">添加歌曲到歌单</h3>
-              <div className="max-h-[50vh] overflow-y-auto thin-scrollbar">
-                {availableSongs.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-ink-muted dark:text-white/60">所有歌曲已添加</div>
-                ) : (
-                  availableSongs.map((song) => (
-                    <button
-                      key={song.id}
-                      type="button"
-                      onClick={() => {
-                        void addToPlaylist(selectedPlaylist.id, [song.id]);
-                      }}
-                      className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/8"
-                    >
-                      <CoverArt src={song.coverUrl} alt={song.title} size={40} rounded="sm" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-truncate text-sm font-medium text-ink dark:text-white">{song.title}</div>
-                        <div className="text-truncate text-xs text-ink-muted dark:text-white/60">{song.artist}</div>
-                      </div>
-                      <Plus className="h-4 w-4 text-accent" />
-                    </button>
-                  ))
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddSongs(false)}
-                className="mt-3 w-full rounded-2xl bg-white/[0.08] py-3 text-sm font-semibold text-ink-muted dark:text-white/60"
-              >
-                完成
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

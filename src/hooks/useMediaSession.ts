@@ -1,13 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePlayerStore } from "@/store/playerStore";
 import type { Song } from "@/types";
 
-// MediaSession API + Capacitor 原生媒体会话插件集成
-// 让系统级媒体控件（锁屏 / 蓝牙 / 车机 / 状态栏 / 通知栏）能显示元数据并控制播放
-// 在 Android 上使用 @juan.maldonado.dev/capacitor-media-session 提供前台服务和通知
-// 在 Web/iOS 上使用标准 Media Session Web API
-
-// 检测是否在 Capacitor 原生环境中
 function isCapacitorNative(): boolean {
   if (typeof window === "undefined") return false;
   const cap = (window as unknown as Record<string, unknown>).Capacitor;
@@ -16,7 +10,6 @@ function isCapacitorNative(): boolean {
   return typeof isNative === "function" ? !!isNative() : !!isNative;
 }
 
-// 动态加载 Capacitor 媒体会话插件（仅在原生环境）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getCapacitorMediaSession(): Promise<any> {
   if (!isCapacitorNative()) return null;
@@ -46,11 +39,12 @@ async function buildArtwork(src: string | undefined) {
   if (!img) return [];
   return [
     { src, sizes: `${img.naturalWidth}x${img.naturalHeight}`, type: "image/*" },
+    { src, sizes: "512x512", type: "image/*" },
+    { src, sizes: "256x256", type: "image/*" },
   ];
 }
 
-// Web 标准 MediaSession API
-function updateWebMediaSession(song: Song | null, isPlaying: boolean) {
+function updateWebMediaSession(song: Song | null, isPlaying: boolean, currentTime: number, duration: number) {
   if (!("mediaSession" in navigator)) return;
 
   if (!song) {
@@ -60,53 +54,68 @@ function updateWebMediaSession(song: Song | null, isPlaying: boolean) {
   }
 
   navigator.mediaSession.metadata = new MediaMetadata({
-    title: song.title,
-    artist: song.artist,
-    album: song.album,
+    title: song.title || "未知歌曲",
+    artist: song.artist || "未知艺术家",
+    album: song.album || "",
   });
   navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
 
-  // 异步加载封面
   void buildArtwork(song.coverUrl).then((artwork) => {
     if (navigator.mediaSession.metadata && artwork.length > 0) {
       navigator.mediaSession.metadata.artwork = artwork;
     }
   });
+
+  try {
+    navigator.mediaSession.setPositionState({
+      duration: duration || 0,
+      position: currentTime || 0,
+      playbackRate: 1.0,
+    });
+  } catch { /* ignore */ }
 }
 
-// Capacitor 原生媒体会话
-async function updateCapacitorMediaSession(song: Song | null, isPlaying: boolean) {
+async function updateCapacitorMediaSession(song: Song | null, isPlaying: boolean, currentTime: number, duration: number) {
   const MediaSession = await getCapacitorMediaSession();
   if (!MediaSession) return;
 
   if (!song) {
     try {
       await MediaSession.setPlaybackState({ state: "none" });
+      await MediaSession.stopForegroundService();
     } catch { /* ignore */ }
     return;
   }
 
-  // 设置元数据
   try {
-    const artwork = song.coverUrl ? [{ src: song.coverUrl, sizes: "512x512", type: "image/*" }] : [];
+    await MediaSession.startForegroundService();
+  } catch { /* ignore */ }
+
+  try {
+    const artwork = song.coverUrl 
+      ? [
+          { src: song.coverUrl, sizes: "512x512", type: "image/*" },
+          { src: song.coverUrl, sizes: "256x256", type: "image/*" },
+        ] 
+      : [];
+    
     await MediaSession.setMetadata({
       metadata: {
-        title: song.title,
-        artist: song.artist,
+        title: song.title || "未知歌曲",
+        artist: song.artist || "未知艺术家",
         album: song.album ?? "",
         artwork,
       },
     });
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.warn("设置媒体元数据失败:", err);
+  }
 
-  // 设置播放状态（必须设置为 "playing" 才会启动前台服务/显示通知）
   try {
     await MediaSession.setPlaybackState({ state: isPlaying ? "playing" : "paused" });
   } catch { /* ignore */ }
 
-  // 设置位置状态
   try {
-    const { currentTime, duration } = usePlayerStore.getState();
     await MediaSession.setPositionState({
       duration: duration || 0,
       position: currentTime || 0,
@@ -118,19 +127,47 @@ async function updateCapacitorMediaSession(song: Song | null, isPlaying: boolean
 export function useMediaSession() {
   const currentSong = usePlayerStore((s) => s.currentSong);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const updateIntervalRef = useRef<number | null>(null);
 
-  // 更新元数据和播放状态
   useEffect(() => {
-    // 始终更新 Web MediaSession
-    updateWebMediaSession(currentSong, isPlaying);
-
-    // 在 Capacitor 原生环境中额外更新原生媒体会话
+    updateWebMediaSession(currentSong, isPlaying, currentTime, duration);
     if (isCapacitorNative()) {
-      void updateCapacitorMediaSession(currentSong, isPlaying);
+      void updateCapacitorMediaSession(currentSong, isPlaying, currentTime, duration);
     }
   }, [currentSong, isPlaying]);
 
-  // 注册动作处理器（Web + Capacitor）
+  useEffect(() => {
+    if (!currentSong || !isPlaying) {
+      if (updateIntervalRef.current) {
+        clearInterval(updateIntervalRef.current);
+        updateIntervalRef.current = null;
+      }
+      return;
+    }
+
+    updateWebMediaSession(currentSong, isPlaying, currentTime, duration);
+    if (isCapacitorNative()) {
+      void updateCapacitorMediaSession(currentSong, isPlaying, currentTime, duration);
+    }
+
+    updateIntervalRef.current = window.setInterval(() => {
+      const state = usePlayerStore.getState();
+      updateWebMediaSession(state.currentSong, state.isPlaying, state.currentTime, state.duration);
+      if (isCapacitorNative()) {
+        void updateCapacitorMediaSession(state.currentSong, state.isPlaying, state.currentTime, state.duration);
+      }
+    }, 1000);
+
+    return () => {
+      if (updateIntervalRef.current) {
+        clearInterval(updateIntervalRef.current);
+        updateIntervalRef.current = null;
+      }
+    };
+  }, [currentTime, currentSong, duration, isPlaying]);
+
   useEffect(() => {
     const registerWebHandlers = () => {
       if (!("mediaSession" in navigator)) return;
@@ -172,7 +209,6 @@ export function useMediaSession() {
         await MediaSession.setActionHandler({ action: "seekto" });
       } catch { /* ignore */ }
 
-      // 监听 Capacitor 媒体控制事件
       MediaSession.addListener("action", (event: { action: string; seekTime?: number }) => {
         const st = usePlayerStore.getState();
         switch (event.action) {
@@ -201,7 +237,6 @@ export function useMediaSession() {
     void registerCapacitorHandlers();
 
     return () => {
-      // 清理 Web handlers
       if ("mediaSession" in navigator) {
         const ms = navigator.mediaSession;
         try { ms.setActionHandler("play", null); } catch { /* ignore */ }
@@ -212,6 +247,9 @@ export function useMediaSession() {
         try { ms.setActionHandler("seekto", null); } catch { /* ignore */ }
         try { ms.setActionHandler("seekbackward", null); } catch { /* ignore */ }
         try { ms.setActionHandler("seekforward", null); } catch { /* ignore */ }
+      }
+      if (updateIntervalRef.current) {
+        clearInterval(updateIntervalRef.current);
       }
     };
   }, []);
