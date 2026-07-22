@@ -2,22 +2,10 @@ import { parseBlob } from "music-metadata";
 import type { Song } from "@/types";
 import { generateId, orUnknown, stripExtension } from "./format";
 import { parseLrc } from "./lyrics";
+import type { ScannedAudioFile } from "@/plugins/ttanScanner";
+import { PLACEHOLDER_COVER } from "./placeholders";
 
-// 默认占位封面（SVG data URL）
-const PLACEHOLDER_COVER =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#FFC5AB"/>
-          <stop offset="1" stop-color="#FF6B35"/>
-        </linearGradient>
-      </defs>
-      <rect width="240" height="240" rx="20" fill="url(#g)"/>
-      <path d="M96 84v66a18 18 0 1 1-9-15.6V96l66-16v54a18 18 0 1 1-9-15.6V74a6 6 0 0 0-7.3-5.9l-36 8.7a6 6 0 0 0-4.7 5.9z" fill="#fff" opacity="0.95"/>
-    </svg>`
-  );
+export { PLACEHOLDER_COVER };
 
 export function getPlaceholderCover(): string {
   return PLACEHOLDER_COVER;
@@ -52,8 +40,16 @@ export async function fileToSong(file: File): Promise<Song> {
   let genre: string | undefined;
   let year: number | undefined;
 
+  // 读取 MediaStore 提供的元数据（来自自动扫描）
+  const mediaStoreInfo: ScannedAudioFile | undefined = (
+    file as File & { __mediaStoreInfo?: ScannedAudioFile }
+  ).__mediaStoreInfo;
+
   try {
-    const metadata = await parseBlob(file);
+    const metadata = await parseBlob(file, {
+      duration: true,
+      skipCovers: false, // 明确启用封面提取
+    });
     if (metadata.common.title) title = metadata.common.title;
     if (metadata.common.artist) artist = metadata.common.artist;
     if (metadata.common.album) album = metadata.common.album;
@@ -69,19 +65,72 @@ export async function fileToSong(file: File): Promise<Song> {
     // 提取封面（保留 Blob 引用）
     const picture = metadata.common.picture?.[0];
     if (picture) {
-      coverBlob = new Blob([picture.data], { type: picture.format });
+      // picture.data 是 Uint8Array 或 Buffer
+      const data =
+        picture.data instanceof Uint8Array
+          ? picture.data
+          : new Uint8Array(picture.data as ArrayBuffer);
+      coverBlob = new Blob([data.buffer as ArrayBuffer], { type: picture.format || "image/jpeg" });
       coverUrl = URL.createObjectURL(coverBlob);
     }
 
-    // 提取内嵌歌词（USLT）
+    // 提取内嵌歌词（USLT / Vorbis LYRICS）
     const uslt = (
       metadata.common as unknown as {
         lyrics?: Array<{ language?: string; text?: string }>;
       }
     ).lyrics?.[0];
     if (uslt?.text) lyrics = uslt.text;
+
+    // 某些格式（FLAC/OGG）歌词存放在 native tag 中
+    if (!lyrics) {
+      const native = (metadata as unknown as {
+        native?: Record<string, Array<{ id?: string; value?: string }>>;
+      }).native;
+      if (native) {
+        // Vorbis comment: LYRICS
+        const vorbisLyrics = native["vorbis"]?.[0]?.["LYRICS" as keyof typeof native];
+        if (typeof vorbisLyrics === "string") lyrics = vorbisLyrics;
+        // ID3v2: USLT（可能位于 native.id3v23）
+        const id3Lyrics = native["ID3v2.3"]?.[0]?.value;
+        if (typeof id3Lyrics === "string" && id3Lyrics.startsWith("[")) lyrics = id3Lyrics;
+      }
+    }
   } catch (err) {
     console.warn("解析元数据失败:", file.name, err);
+  }
+
+  // 回退：使用 MediaStore 提供的元数据
+  if (mediaStoreInfo) {
+    if (!title || title === stripExtension(file.name)) {
+      if (mediaStoreInfo.title) title = mediaStoreInfo.title;
+      else if (mediaStoreInfo.name) title = stripExtension(mediaStoreInfo.name);
+    }
+    if ((!artist || artist === "未知艺术家") && mediaStoreInfo.artist) {
+      artist = mediaStoreInfo.artist;
+    }
+    if ((!album || album === "未知专辑") && mediaStoreInfo.album) {
+      album = mediaStoreInfo.album;
+    }
+    if (!duration && mediaStoreInfo.duration) {
+      duration = Math.round(mediaStoreInfo.duration / 1000);
+    }
+
+    // MediaStore 提供的专辑封面（base64 形式）
+    if (!coverBlob && mediaStoreInfo.coverBase64) {
+      try {
+        const byteString = atob(mediaStoreInfo.coverBase64);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        coverBlob = new Blob([ab], { type: mediaStoreInfo.coverMime || "image/jpeg" });
+        coverUrl = URL.createObjectURL(coverBlob);
+      } catch (err) {
+        console.warn("解码 MediaStore 封面失败", err);
+      }
+    }
   }
 
   return {

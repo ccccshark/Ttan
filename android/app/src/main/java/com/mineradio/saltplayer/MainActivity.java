@@ -14,6 +14,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // 注册自定义插件
+        registerPlugin(TtanScannerPlugin.class);
         super.onCreate(savedInstanceState);
 
         // 沉浸式全屏 - 沉浸式听歌体验

@@ -197,31 +197,40 @@ export default function Settings() {
   // 扫描文件夹添加歌曲
   const { addFiles } = useLibraryStore();
   const [scanProgress, setScanProgress] = useState<number | null>(null);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
 
   const handleScanFolder = async () => {
     try {
       if (isCapacitor) {
         setScanProgress(0);
         setBusy(true);
+        setScanMessage(null);
         try {
           const files = await scanLocalMusic((progress) => {
             const pct = progress.total > 0 ? Math.round((progress.scanned / progress.total) * 100) : 0;
             setScanProgress(pct);
+            if (progress.total > 0) {
+              setScanMessage(`已扫描 ${progress.scanned}/${progress.total}`);
+            }
           });
 
           if (files.length === 0) {
-            showToast("未找到音频文件");
+            setScanMessage(null);
+            showToast("未发现音频文件，请检查存储权限或导入文件");
             return;
           }
 
           await addFiles(files);
-          showToast(`成功扫描并导入 ${files.length} 首歌曲`);
+          setScanMessage(null);
+          showToast(`成功导入 ${files.length} 首歌曲`);
         } catch (err) {
           console.error(err);
+          setScanMessage(null);
           showToast("扫描失败，请检查存储权限");
         } finally {
           setBusy(false);
           setScanProgress(null);
+          setTimeout(() => setScanMessage(null), 1500);
         }
       } else {
         const input = document.createElement("input");
@@ -788,7 +797,13 @@ export default function Settings() {
         <SettingsCard title="音乐库" icon={<Library className="h-3.5 w-3.5" />}>
           <Row
             title="扫描本地歌曲"
-            subtitle={scanProgress !== null ? `正在扫描... ${scanProgress}%` : "自动扫描设备中的音频文件"}
+            subtitle={
+              scanMessage
+                ? scanMessage
+                : scanProgress !== null
+                  ? `正在扫描... ${scanProgress}%`
+                  : "自动扫描设备中的音频文件"
+            }
             onClick={scanProgress !== null ? undefined : handleScanFolder}
             chevron={scanProgress === null}
             trailing={scanProgress !== null ? (

@@ -9,6 +9,7 @@ import {
   Play,
   Repeat,
   Repeat1,
+  Share2,
   Shuffle,
   SkipBack,
   SkipForward,
@@ -26,6 +27,7 @@ import LyricsStage from "@/components/LyricsStage";
 import ProgressBar from "@/components/ProgressBar";
 import CoverArt from "@/components/CoverArt";
 import SpectrumVisualizer from "@/components/SpectrumVisualizer";
+import ShareLyricCard from "@/components/ShareLyricCard";
 import type { PlayMode } from "@/types";
 import { formatTime } from "@/utils/format";
 import { cn } from "@/lib/utils";
@@ -105,6 +107,7 @@ export default function NowPlaying() {
   const [view, setView] = useState<View>("cover");
   const [showQueue, setShowQueue] = useState(false);
   const [showVolume, setShowVolume] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [seekHint, setSeekHint] = useState<"" | "rewind" | "forward">("");
 
   const lastTapRef = useRef(0);
@@ -220,12 +223,12 @@ export default function NowPlaying() {
   const isFavorite = currentSong ? !!songs.find((s) => s.id === currentSong.id)?.favorite : false;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-950 via-[#05060f] to-black text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-white">
       {/* === 背景层：根据设置动态切换 === */}
       {settings.playbackBackground === "blurCover" && currentSong.coverUrl && (
         <>
           <div
-            className="absolute inset-0 -z-30 scale-130"
+            className="absolute inset-0 z-0 scale-130"
             style={{
               backgroundImage: `url(${currentSong.coverUrl})`,
               backgroundSize: "cover",
@@ -233,7 +236,7 @@ export default function NowPlaying() {
               filter: "blur(100px) saturate(200%) brightness(0.7)",
             }}
           />
-          <div className="absolute inset-0 -z-20 bg-gradient-to-b from-black/40 via-black/60 to-black/80" />
+          <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80" />
         </>
       )}
 
@@ -244,7 +247,7 @@ export default function NowPlaying() {
           isPlaying={isPlaying}
           bass={analysis.bass}
           intensity={settings.flowLightIntensity}
-          className="absolute inset-0 -z-10 opacity-60"
+          className="absolute inset-0 z-0 opacity-60"
         />
       )}
 
@@ -260,7 +263,7 @@ export default function NowPlaying() {
       {/* 纯色背景 */}
       {settings.playbackBackground === "solid" && (
         <div
-          className="absolute inset-0 -z-30"
+          className="absolute inset-0 z-0"
           style={{
             background: settings.dynamicColor && currentSong.coverUrl
               ? `var(--accent-color, #FF6B35)`
@@ -272,19 +275,32 @@ export default function NowPlaying() {
       {/* 自定义图片背景 */}
       {settings.playbackBackground === "customImage" && settings.customBackgroundImage && (
         <>
-          <img
-            src={settings.customBackgroundImage}
-            alt=""
-            className="absolute inset-0 -z-30 h-full w-full object-cover"
-            style={{ filter: "brightness(0.6)" }}
+          <div
+            className="absolute inset-0 z-0"
+            style={{
+              backgroundImage: `url(${settings.customBackgroundImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              filter: "brightness(0.6)",
+            }}
           />
-          <div className="absolute inset-0 -z-20 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
+          <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
         </>
+      )}
+
+      {/* 默认无背景设置时使用的基础渐变（兜底） */}
+      {settings.playbackBackground === "none" && (
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-950 via-[#05060f] to-black" />
+      )}
+      {/* 兜底：flowLight 也是默认，确保有一个深色渐变作为基础 */}
+      {settings.playbackBackground === "flowLight" && !settings.customBackgroundImage && !currentSong?.coverUrl && (
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-950 via-[#05060f] to-black" />
       )}
 
       {/* === 顶部极简栏 === */}
       <div
-        className="relative flex items-center justify-between px-4"
+        className="relative z-10 flex items-center justify-between px-4"
         style={{ paddingTop: `${statusBarHeight}px` }}
       >
         <motion.button
@@ -315,7 +331,7 @@ export default function NowPlaying() {
         dragElastic={0.15}
         onDragEnd={handleDragEnd}
         onTap={handleDoubleTap}
-        className="relative mx-auto flex min-h-[calc(100vh-260px)] max-w-[480px] cursor-grab px-6 active:cursor-grabbing"
+        className="relative z-10 mx-auto flex min-h-[calc(100vh-260px)] max-w-[480px] cursor-grab px-6 active:cursor-grabbing"
       >
         <AnimatePresence mode="wait">
           {view === "lyrics" ? (
@@ -510,6 +526,21 @@ export default function NowPlaying() {
                   >
                     歌词
                   </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => setShowShare(true)}
+                    whileTap={{ scale: 0.95 }}
+                    disabled={!hasLyrics}
+                    className={cn(
+                      "rounded-full px-3 py-2 text-xs font-medium backdrop-blur-md transition-colors",
+                      hasLyrics
+                        ? "bg-white/6 text-white/70 hover:bg-white/12"
+                        : "bg-white/4 text-white/40"
+                    )}
+                    aria-label="分享歌词"
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>
@@ -518,7 +549,7 @@ export default function NowPlaying() {
       </motion.div>
 
       {/* === 底部浮动玻璃控制栏 === */}
-      <div className="safe-bottom relative px-4 pb-4">
+      <div className="safe-bottom relative z-10 px-4 pb-4">
         {/* 进度条 */}
         <div className="mb-4">
           <ProgressBar
@@ -769,6 +800,14 @@ export default function NowPlaying() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* === 歌词分享卡片 === */}
+      <ShareLyricCard
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        song={currentSong}
+        currentTime={currentTime}
+      />
     </div>
   );
 }

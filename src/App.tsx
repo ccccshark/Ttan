@@ -19,6 +19,7 @@ import BottomNav from "@/components/BottomNav";
 import SplashScreen from "@/components/SplashScreen";
 import BlurredBackground from "@/components/BlurredBackground";
 import DisclaimerModal from "@/components/DisclaimerModal";
+import ToastContainer from "@/components/Toast";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useEqualizer } from "@/hooks/useEqualizer";
 import { useMediaSession } from "@/hooks/useMediaSession";
@@ -159,6 +160,7 @@ export default function App() {
           {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
           {showDisclaimer && <DisclaimerModal onAccept={handleAcceptDisclaimer} />}
         </AnimatePresence>
+        <ToastContainer />
       </div>
     </Router>
   );
