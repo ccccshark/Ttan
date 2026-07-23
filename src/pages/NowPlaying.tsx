@@ -32,14 +32,12 @@ import type { PlayMode } from "@/types";
 import { formatTime } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
-// mineRadio 风格播放页：
-// - 玻璃拟态（heavy blur + saturation）
-// - 封面取色渐变背景 + 流动光晕
-// - 超大圆角封面（32px）+ 呼吸式节拍动画
-// - 浮动玻璃控制栏（底部半透明面板）
-// - 歌词全屏沉浸模式
-// - 极简顶部栏（仅返回 + 队列）
-// - 音频反应式光晕与粒子
+// PixelPlayer 风格播放页
+// - 大圆角封面 (28px)
+// - 渐变背景 + 玻璃拟态控制
+// - 紫色主强调 #6C4FF5
+// - 波浪进度条视觉
+// - 大播放按钮 + 呼吸动画
 type View = "cover" | "lyrics";
 
 export default function NowPlaying() {
@@ -68,10 +66,10 @@ export default function NowPlaying() {
   const songs = useLibraryStore((s) => s.songs);
   const statusBarHeight = useStatusBarHeight();
 
-  // 动态取色：从封面提取主色注入 CSS 变量
+  // 动态取色
   useEffect(() => {
     if (!currentSong?.coverUrl) {
-      document.documentElement.style.setProperty("--accent-color", "#FF6B35");
+      document.documentElement.style.setProperty("--accent-color", "#6C4FF5");
       return;
     }
     const img = new Image();
@@ -180,8 +178,8 @@ export default function NowPlaying() {
 
   if (!currentSong) {
     return (
-      <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-slate-950 via-[#05060f] to-black px-6 text-center text-white">
-        <FlowingLight isPlaying={false} bass={0} className="absolute inset-0 opacity-40" />
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-surface-dark via-[#150c24] to-black px-6 text-center text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(108,79,245,0.15),transparent_60%)]" />
         <div className="relative z-10 flex flex-col items-center gap-4">
           <motion.div
             initial={{ scale: 0.6, opacity: 0 }}
@@ -223,8 +221,8 @@ export default function NowPlaying() {
   const isFavorite = currentSong ? !!songs.find((s) => s.id === currentSong.id)?.favorite : false;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#05060f] text-white">
-      {/* === 背景层：根据设置动态切换 === */}
+    <div className="relative min-h-screen overflow-hidden bg-surface-dark text-white">
+      {/* === 背景层 === */}
       {settings.playbackBackground === "blurCover" && currentSong.coverUrl && (
         <>
           <div
@@ -240,7 +238,6 @@ export default function NowPlaying() {
         </>
       )}
 
-      {/* 流光效果 */}
       {settings.playbackBackground === "flowLight" && (
         <FlowingLight
           coverUrl={currentSong.coverUrl}
@@ -251,7 +248,6 @@ export default function NowPlaying() {
         />
       )}
 
-      {/* 粒子效果 */}
       {settings.playbackBackground === "particle" && (
         <ParticleField
           analysis={analysis}
@@ -260,19 +256,17 @@ export default function NowPlaying() {
         />
       )}
 
-      {/* 纯色背景 */}
       {settings.playbackBackground === "solid" && (
         <div
           className="absolute inset-0 z-0"
           style={{
             background: settings.dynamicColor && currentSong.coverUrl
-              ? `var(--accent-color, #FF6B35)`
-              : "#05060f",
+              ? `var(--accent-color, #6C4FF5)`
+              : "#1E1234",
           }}
         />
       )}
 
-      {/* 自定义图片背景 */}
       {settings.playbackBackground === "customImage" && settings.customBackgroundImage && (
         <>
           <div
@@ -289,16 +283,14 @@ export default function NowPlaying() {
         </>
       )}
 
-      {/* 默认无背景设置时使用的基础渐变（兜底） */}
       {settings.playbackBackground === "none" && (
-        <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-950 via-[#05060f] to-black" />
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#1E1234] via-[#150c24] to-black" />
       )}
-      {/* 兜底：flowLight 也是默认，确保有一个深色渐变作为基础 */}
       {settings.playbackBackground === "flowLight" && !settings.customBackgroundImage && !currentSong?.coverUrl && (
-        <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-950 via-[#05060f] to-black" />
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#1E1234] via-[#150c24] to-black" />
       )}
 
-      {/* === 顶部极简栏 === */}
+      {/* === 顶部栏 === */}
       <div
         className="relative z-10 flex items-center justify-between px-4"
         style={{ paddingTop: `${statusBarHeight}px` }}
@@ -307,18 +299,20 @@ export default function NowPlaying() {
           type="button"
           onClick={() => navigate(-1)}
           whileTap={{ scale: 0.9 }}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-black/20 text-white/80 backdrop-blur-md hover:bg-black/30"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/80 backdrop-blur-md hover:bg-white/20"
         >
           <ChevronDown className="h-5 w-5" />
         </motion.button>
-        <div className="text-[10px] uppercase tracking-[0.25em] text-white/35">
-          {playModeLabel[playMode]}
+        <div className="flex flex-col items-center">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-white/40">
+            {playModeLabel[playMode]}
+          </div>
         </div>
         <motion.button
           type="button"
           onClick={() => setShowQueue(true)}
           whileTap={{ scale: 0.9 }}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-black/20 text-white/80 backdrop-blur-md hover:bg-black/30"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/80 backdrop-blur-md hover:bg-white/20"
         >
           <ListMusic className="h-4 w-4" />
         </motion.button>
@@ -331,7 +325,7 @@ export default function NowPlaying() {
         dragElastic={0.15}
         onDragEnd={handleDragEnd}
         onTap={handleDoubleTap}
-        className="relative z-10 mx-auto flex min-h-[calc(100vh-260px)] max-w-[480px] cursor-grab px-6 active:cursor-grabbing"
+        className="relative z-10 mx-auto flex min-h-[calc(100vh-280px)] max-w-[480px] cursor-grab px-6 active:cursor-grabbing"
       >
         <AnimatePresence mode="wait">
           {view === "lyrics" ? (
@@ -370,29 +364,27 @@ export default function NowPlaying() {
               {/* 封面卡片 */}
               <motion.div
                 className="relative"
-                animate={{
-                  scale: isPlaying ? 1.02 : 0.95,
-                }}
+                animate={{ scale: isPlaying ? 1.02 : 0.98 }}
                 transition={{ type: "spring", stiffness: 120, damping: 20 }}
               >
-                {/* 封面光晕 - 更柔和宽广的效果 */}
+                {/* 封面光晕 */}
                 <motion.div
-                  className="absolute -inset-6 -z-10 rounded-[40px]"
+                  className="absolute -inset-5 -z-10 rounded-[36px]"
                   animate={{
-                    opacity: isPlaying ? [0.4, 0.6, 0.4] : 0.15,
+                    opacity: isPlaying ? [0.3, 0.5, 0.3] : 0.1,
                     boxShadow: isPlaying
-                      ? `0 0 ${80 + analysis.bass * 100}px var(--accent-color, #FF6B35), 0 0 ${120 + analysis.bass * 150}px var(--accent-color, #FF6B35)`
-                      : "0 0 40px rgba(255,255,255,0.08)",
+                      ? `0 0 ${60 + analysis.bass * 80}px var(--accent-color, #6C4FF5), 0 0 ${100 + analysis.bass * 120}px var(--accent-color, #6C4FF5)`
+                      : "0 0 30px rgba(108,79,245,0.15)",
                   }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 />
 
-                {/* 封面图 - 更大尺寸、圆角、边框、阴影 */}
-                <div className="relative rounded-[24px] overflow-hidden shadow-2xl ring-1 ring-white/10">
+                {/* 封面图 */}
+                <div className="relative overflow-hidden rounded-[28px] shadow-2xl ring-1 ring-white/10">
                   <CoverArt
                     src={currentSong.coverUrl}
                     alt={currentSong.title}
-                    size={300}
+                    size={320}
                     rounded="lg"
                     spinning={settings.coverStyle === "vinyl" && isPlaying}
                     className={cn(
@@ -402,7 +394,7 @@ export default function NowPlaying() {
                   />
                   {settings.coverStyle === "vinyl" && (
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <div className="h-16 w-16 rounded-full bg-[#05060f] ring-3 ring-black/30 flex items-center justify-center">
+                      <div className="h-16 w-16 rounded-full bg-surface-dark ring-3 ring-black/30 flex items-center justify-center">
                         <div className="h-3 w-3 rounded-full bg-white/25" />
                       </div>
                     </div>
@@ -416,7 +408,7 @@ export default function NowPlaying() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 0.7, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="mt-8 h-10 w-full max-w-[260px]"
+                  className="mt-8 h-10 w-full max-w-[280px]"
                 >
                   <SpectrumVisualizer
                     isPlaying={isPlaying}
@@ -435,7 +427,7 @@ export default function NowPlaying() {
                 transition={{ delay: 0.2, duration: 0.5 }}
                 className="mt-8 w-full text-center"
               >
-                <h1 className="text-[22px] font-bold tracking-tight">
+                <h1 className="text-2xl font-bold tracking-tight">
                   {currentSong.title}
                 </h1>
                 <p className="mt-1.5 text-sm text-white/60">
@@ -452,12 +444,12 @@ export default function NowPlaying() {
                 {(currentSong.codec || currentSong.bitrate) && (
                   <div className="mt-2.5 flex justify-center gap-1.5">
                     {currentSong.codec && (
-                      <span className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/50">
+                      <span className="rounded-full bg-white/6 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/50">
                         {currentSong.codec}
                       </span>
                     )}
                     {currentSong.bitrate && (
-                      <span className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] font-medium tabular-nums text-white/50">
+                      <span className="rounded-full bg-white/6 px-2.5 py-0.5 text-[10px] font-medium tabular-nums text-white/50">
                         {currentSong.bitrate} kbps
                       </span>
                     )}
@@ -465,16 +457,16 @@ export default function NowPlaying() {
                 )}
 
                 {/* 收藏 + 歌词切换 */}
-                <div className="mt-5 flex items-center justify-center gap-2">
+                <div className="mt-5 flex items-center justify-center gap-3">
                   <motion.button
                     type="button"
                     onClick={() => toggleFavorite(currentSong.id)}
                     whileTap={{ scale: 0.85 }}
                     className={cn(
-                      "relative flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-md transition-colors",
+                      "relative flex h-11 w-11 items-center justify-center rounded-full backdrop-blur-md transition-colors",
                       isFavorite
-                        ? "bg-rose-500/20 text-rose-400"
-                        : "bg-white/6 text-white/60 hover:bg-white/12"
+                        ? "bg-pixel-pink/20 text-pixel-pink"
+                        : "bg-white/8 text-white/60 hover:bg-white/15"
                     )}
                   >
                     <AnimatePresence mode="wait">
@@ -486,7 +478,7 @@ export default function NowPlaying() {
                           exit={{ scale: 0.5, opacity: 0 }}
                           transition={{ duration: 0.4, ease: "easeOut" }}
                         >
-                          <Heart className="h-5 w-5 fill-rose-400 text-rose-400" />
+                          <Heart className="h-5 w-5 fill-pixel-pink text-pixel-pink" />
                         </motion.div>
                       ) : (
                         <motion.div
@@ -500,7 +492,6 @@ export default function NowPlaying() {
                         </motion.div>
                       )}
                     </AnimatePresence>
-                    {/* 收藏时扩散光环 */}
                     <AnimatePresence>
                       {isFavorite && (
                         <motion.span
@@ -508,7 +499,7 @@ export default function NowPlaying() {
                           initial={{ scale: 0.8, opacity: 0.6 }}
                           animate={{ scale: 1.8, opacity: 0 }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
-                          className="absolute inset-0 rounded-full border-2 border-rose-400"
+                          className="absolute inset-0 rounded-full border-2 border-pixel-pink"
                         />
                       )}
                     </AnimatePresence>
@@ -518,9 +509,9 @@ export default function NowPlaying() {
                     onClick={() => setView("lyrics")}
                     whileTap={{ scale: 0.95 }}
                     className={cn(
-                      "rounded-full px-4 py-2 text-xs font-medium backdrop-blur-md transition-colors",
+                      "rounded-full px-5 py-2.5 text-xs font-medium backdrop-blur-md transition-colors",
                       hasLyrics
-                        ? "bg-white/6 text-white/70 hover:bg-white/12"
+                        ? "bg-white/8 text-white/70 hover:bg-white/15"
                         : "bg-white/4 text-white/40"
                     )}
                   >
@@ -532,9 +523,9 @@ export default function NowPlaying() {
                     whileTap={{ scale: 0.95 }}
                     disabled={!hasLyrics}
                     className={cn(
-                      "rounded-full px-3 py-2 text-xs font-medium backdrop-blur-md transition-colors",
+                      "rounded-full px-4 py-2.5 text-xs font-medium backdrop-blur-md transition-colors",
                       hasLyrics
-                        ? "bg-white/6 text-white/70 hover:bg-white/12"
+                        ? "bg-white/8 text-white/70 hover:bg-white/15"
                         : "bg-white/4 text-white/40"
                     )}
                     aria-label="分享歌词"
@@ -548,10 +539,10 @@ export default function NowPlaying() {
         </AnimatePresence>
       </motion.div>
 
-      {/* === 底部浮动玻璃控制栏 === */}
-      <div className="safe-bottom relative z-10 px-4 pb-4">
+      {/* === 底部玻璃控制栏 === */}
+      <div className="safe-bottom relative z-10 px-5 pb-5">
         {/* 进度条 */}
-        <div className="mb-4">
+        <div className="mb-5">
           <ProgressBar
             current={currentTime}
             duration={duration}
@@ -567,7 +558,7 @@ export default function NowPlaying() {
             type="button"
             onClick={cyclePlayMode}
             whileTap={{ scale: 0.9 }}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/6 text-white/50 backdrop-blur-md hover:bg-white/12 hover:text-white/70"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/8 text-white/50 backdrop-blur-md hover:bg-white/15 hover:text-white/70"
           >
             {playModeIcon[playMode]}
           </motion.button>
@@ -581,28 +572,28 @@ export default function NowPlaying() {
             onPointerLeave={endLongPressSeek}
             onPointerCancel={endLongPressSeek}
             whileTap={{ scale: 0.9 }}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/8 text-white/70 backdrop-blur-md hover:bg-white/15"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/70 backdrop-blur-md hover:bg-white/18"
           >
             <SkipBack className="h-5 w-5 fill-white" />
           </motion.button>
 
-          {/* 播放/暂停（核心按钮） */}
+          {/* 播放/暂停（核心按钮 - PixelPlayer 大按钮风格） */}
           <motion.button
             type="button"
             onClick={togglePlay}
             whileTap={{ scale: 0.92 }}
             animate={{
-              scale: isPlaying ? [1, 1.02, 1] : 1,
+              scale: isPlaying ? [1, 1.03, 1] : 1,
               boxShadow: isPlaying
-                ? `0 0 ${15 + analysis.bass * 40}px var(--accent-color, #FF6B35)`
-                : "0 0 20px rgba(255,255,255,0.2)",
+                ? `0 0 ${15 + analysis.bass * 40}px var(--accent-color, #6C4FF5)`
+                : "0 0 20px rgba(108,79,245,0.3)",
             }}
             transition={{
               duration: isPlaying ? 1.5 : 0.2,
               repeat: isPlaying ? Infinity : 0,
               ease: "easeInOut",
             }}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#05060f]"
+            className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-pixel-purple text-white"
           >
             <AnimatePresence mode="wait" initial={false}>
               {isPlaying ? (
@@ -613,7 +604,7 @@ export default function NowPlaying() {
                   exit={{ scale: 0.6, opacity: 0 }}
                   transition={{ duration: 0.15 }}
                 >
-                  <Pause className="h-7 w-7 fill-[#05060f]" />
+                  <Pause className="h-8 w-8 fill-white" />
                 </motion.span>
               ) : (
                 <motion.span
@@ -623,7 +614,7 @@ export default function NowPlaying() {
                   exit={{ scale: 0.6, opacity: 0 }}
                   transition={{ duration: 0.15 }}
                 >
-                  <Play className="h-7 w-7 translate-x-0.5 fill-[#05060f]" />
+                  <Play className="h-8 w-8 translate-x-0.5 fill-white" />
                 </motion.span>
               )}
             </AnimatePresence>
@@ -638,7 +629,7 @@ export default function NowPlaying() {
             onPointerLeave={endLongPressSeek}
             onPointerCancel={endLongPressSeek}
             whileTap={{ scale: 0.9 }}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/8 text-white/70 backdrop-blur-md hover:bg-white/15"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/70 backdrop-blur-md hover:bg-white/18"
           >
             <SkipForward className="h-5 w-5 fill-white" />
           </motion.button>
@@ -648,7 +639,7 @@ export default function NowPlaying() {
             type="button"
             onClick={() => { toggleMute(); setShowVolume((v) => !v); }}
             whileTap={{ scale: 0.9 }}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/6 text-white/50 backdrop-blur-md hover:bg-white/12 hover:text-white/70"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/8 text-white/50 backdrop-blur-md hover:bg-white/15 hover:text-white/70"
           >
             {muted || volume === 0 ? (
               <VolumeX className="h-4 w-4" />
@@ -665,7 +656,7 @@ export default function NowPlaying() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="mt-3 flex items-center gap-3 rounded-2xl bg-white/6 px-4 py-2 backdrop-blur-md"
+              className="mt-3 flex items-center gap-3 rounded-2xl bg-white/8 px-4 py-2.5 backdrop-blur-md"
             >
               <VolumeX className="h-3.5 w-3.5 text-white/40" />
               <input
@@ -677,7 +668,7 @@ export default function NowPlaying() {
                 onChange={(e) => setVolume(Number(e.target.value))}
                 className="slider h-1 flex-1"
                 style={{
-                  background: `linear-gradient(to right, #fff 0%, #fff ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.15) ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.15) 100%)`,
+                  background: `linear-gradient(to right, #6C4FF5 0%, #6C4FF5 ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.15) ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.15) 100%)`,
                   borderRadius: 999,
                 } as React.CSSProperties}
               />
@@ -718,11 +709,11 @@ export default function NowPlaying() {
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 360, damping: 36 }}
               onClick={(e) => e.stopPropagation()}
-              className="safe-bottom relative z-10 max-h-[65vh] w-full max-w-[480px] overflow-hidden rounded-t-3xl bg-[#0a0e25]/95 backdrop-blur-2xl"
+              className="safe-bottom relative z-10 max-h-[65vh] w-full max-w-[480px] overflow-hidden rounded-t-3xl bg-[#1E1234]/95 backdrop-blur-2xl"
             >
               <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-white/15" />
-              <div className="flex items-center justify-between px-4 py-3">
-                <h3 className="text-base font-semibold text-white">
+              <div className="flex items-center justify-between px-5 py-3">
+                <h3 className="text-base font-bold text-white">
                   播放队列
                   <span className="ml-2 text-xs font-normal text-white/45">
                     {queue.length} 首
@@ -736,7 +727,7 @@ export default function NowPlaying() {
                   关闭
                 </button>
               </div>
-              <div className="thin-scrollbar max-h-[55vh] overflow-y-auto px-2 pb-4">
+              <div className="thin-scrollbar max-h-[55vh] overflow-y-auto px-3 pb-4">
                 {queue.length === 0 ? (
                   <div className="py-10 text-center text-sm text-white/40">
                     队列为空
@@ -756,17 +747,17 @@ export default function NowPlaying() {
                         {i === currentIndex && isPlaying ? (
                           <span className="flex h-3 items-end justify-center gap-[2px]">
                             <motion.span
-                              className="w-[2px] bg-white/60"
+                              className="w-[2px] bg-pixel-purple"
                               animate={{ height: ["60%", "100%", "60%"] }}
                               transition={{ duration: 0.8, repeat: Infinity }}
                             />
                             <motion.span
-                              className="w-[2px] bg-white/60"
+                              className="w-[2px] bg-pixel-purple"
                               animate={{ height: ["85%", "60%", "85%"] }}
                               transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
                             />
                             <motion.span
-                              className="w-[2px] bg-white/60"
+                              className="w-[2px] bg-pixel-purple"
                               animate={{ height: ["45%", "85%", "45%"] }}
                               transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
                             />

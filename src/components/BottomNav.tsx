@@ -16,11 +16,11 @@ export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const [current, setCurrent] = useState<TabKey>("home");
-  
+
   useEffect(() => {
     const path = location.pathname;
     let activeTab: TabKey = "home";
-    
+
     if (path === "/" || path.startsWith("/#")) {
       activeTab = "home";
     } else if (path.startsWith("/playlists") || path.startsWith("/search") || path.startsWith("/song/")) {
@@ -28,19 +28,22 @@ export default function BottomNav() {
     } else if (path.startsWith("/my") || path.startsWith("/settings") || path.startsWith("/about")) {
       activeTab = "my";
     }
-    
+
     setCurrent(activeTab);
   }, [location.pathname]);
 
   return (
     <nav
-      className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-black/[0.04] bg-white/85 backdrop-blur-2xl dark:border-white/[0.06] dark:bg-[#0a0c14]/85"
+      className="safe-bottom fixed inset-x-0 bottom-0 z-20"
       style={{
         backdropFilter: "blur(24px) saturate(180%)",
         WebkitBackdropFilter: "blur(24px) saturate(180%)",
       }}
     >
-      <div className="mx-auto flex max-w-[480px] items-stretch justify-around px-2 py-1.5">
+      {/* 顶部渐变遮罩 */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-full h-8 bg-gradient-to-t from-black/5 to-transparent dark:from-black/20" />
+
+      <div className="mx-auto flex max-w-[480px] items-stretch justify-around px-3 py-2 bg-white/80 dark:bg-[#1E1234]/85 border-t border-black/[0.03] dark:border-white/[0.05]">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = current === tab.key;
@@ -51,21 +54,26 @@ export default function BottomNav() {
               onClick={() => navigate(tab.path)}
               whileTap={{ scale: 0.92 }}
               className={cn(
-                "relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 transition-colors",
-                active ? "text-accent" : "text-ink-muted hover:text-ink dark:text-white/55"
+                "relative flex flex-1 flex-col items-center gap-1 rounded-2xl py-2 transition-colors",
+                active ? "text-pixel-purple" : "text-ink-muted hover:text-ink dark:text-white/50 dark:hover:text-white/80"
               )}
             >
-              <Icon
-                className={cn("h-[22px] w-[22px]", active && "fill-accent/15")}
-                strokeWidth={active ? 2.5 : 2}
-              />
+              <div className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-xl transition-colors",
+                active && "bg-pixel-purple/12"
+              )}>
+                <Icon
+                  className={cn("h-[22px] w-[22px]", active && "fill-pixel-purple/15")}
+                  strokeWidth={active ? 2.5 : 2}
+                />
+              </div>
               <span className={cn("text-[10px] font-medium", active && "font-semibold")}>
                 {tab.label}
               </span>
               {active && (
                 <motion.span
-                  layoutId="bottom-nav-dot"
-                  className="absolute -top-0.5 h-1 w-1 rounded-full bg-accent"
+                  layoutId="bottom-nav-indicator"
+                  className="absolute -bottom-0.5 h-1 w-6 rounded-full bg-pixel-purple"
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}

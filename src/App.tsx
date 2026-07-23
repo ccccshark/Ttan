@@ -150,7 +150,7 @@ export default function App() {
 
   return (
     <Router>
-      <div className="relative mx-auto min-h-screen max-w-[480px] bg-surface-subtle dark:bg-surface-dark">
+      <div className="relative mx-auto min-h-screen max-w-[480px] bg-surface-light dark:bg-surface-dark">
         {/* 高斯模糊动态背景 - 所有页面共享 */}
         <BlurredBackground />
         {/* 主内容始终渲染，启动页叠加在最上层，避免双重渲染 */}

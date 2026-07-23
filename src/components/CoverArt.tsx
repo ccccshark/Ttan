@@ -8,7 +8,7 @@ interface CoverArtProps {
   alt?: string;
   size?: number;
   className?: string;
-  rounded?: "sm" | "md" | "lg" | "full";
+  rounded?: "sm" | "md" | "lg" | "full" | "none";
   spinning?: boolean;
 }
 
@@ -17,6 +17,7 @@ const roundedMap = {
   md: "rounded-xl",
   lg: "rounded-2xl",
   full: "rounded-full",
+  none: "rounded-none",
 };
 
 export default function CoverArt({

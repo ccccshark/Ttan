@@ -4,11 +4,11 @@ import { Pause, Play, SkipForward } from "lucide-react";
 import { usePlayerStore } from "@/store/playerStore";
 import CoverArt from "./CoverArt";
 
-// 迷你播放条（SaltPlayer V12 风格）：
+// PixelPlayer 风格迷你播放条
 // - 液态玻璃质感（blur 40 + saturate 200%）
+// - 圆角大卡片风格
+// - 紫色进度条 + 紫色播放按钮
 // - 顶部细线进度条
-// - 播放/暂停按钮 crossfade 动画
-// - 上滑可展开为全屏播放页（通过点击触发）
 export default function MiniPlayer() {
   const navigate = useNavigate();
   const currentSong = usePlayerStore((s) => s.currentSong);
@@ -28,9 +28,8 @@ export default function MiniPlayer() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
-          // 浮在底部导航之上：bottom 偏移 60px（nav 高度）+ 安全区
           className="fixed inset-x-0 z-30 px-3"
-          style={{ bottom: "calc(60px + env(safe-area-inset-bottom, 0px))" }}
+          style={{ bottom: "calc(64px + env(safe-area-inset-bottom, 0px))" }}
         >
           <motion.button
             type="button"
@@ -38,15 +37,14 @@ export default function MiniPlayer() {
             whileTap={{ scale: 0.985 }}
             className="mx-auto block w-full max-w-[460px] overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-mini backdrop-blur-2xl dark:bg-white/[0.06] dark:backdrop-saturate-200"
             style={{
-              // 液态玻璃质感
               backdropFilter: "blur(40px) saturate(180%)",
               WebkitBackdropFilter: "blur(40px) saturate(180%)",
             }}
           >
-            {/* 顶部进度条 */}
-            <div className="h-[2px] w-full bg-white/8">
+            {/* 顶部进度条 - 紫色 */}
+            <div className="h-[3px] w-full bg-white/8">
               <motion.div
-                className="h-full bg-gradient-to-r from-accent to-accent-300"
+                className="h-full bg-gradient-to-r from-pixel-purple to-pixel-pink"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -63,13 +61,12 @@ export default function MiniPlayer() {
                 <CoverArt
                   src={currentSong.coverUrl}
                   alt={currentSong.title}
-                  size={44}
-                  rounded="md"
+                  size={46}
+                  rounded="lg"
                 />
-                {/* 节拍光环（迷你版）*/}
                 {isPlaying && (
                   <motion.div
-                    className="absolute -inset-1 -z-10 rounded-xl bg-accent/40 blur-md"
+                    className="absolute -inset-1 -z-10 rounded-xl bg-pixel-purple/40 blur-md"
                     animate={{ opacity: [0.4, 0.7, 0.4] }}
                     transition={{ duration: 1.6, repeat: Infinity }}
                   />
@@ -82,7 +79,7 @@ export default function MiniPlayer() {
                   key={currentSong.id + "-title"}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="text-truncate text-sm font-semibold text-ink dark:text-white"
+                  className="text-truncate text-sm font-bold text-ink dark:text-white"
                 >
                   {currentSong.title}
                 </motion.div>
@@ -91,7 +88,7 @@ export default function MiniPlayer() {
                 </div>
               </div>
 
-              {/* 播放/暂停按钮 */}
+              {/* 播放/暂停按钮 - 紫色 */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -99,7 +96,7 @@ export default function MiniPlayer() {
                   togglePlay();
                 }}
                 aria-label={isPlaying ? "暂停" : "播放"}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-glow pressable"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-pixel-purple text-white shadow-lg shadow-pixel-purple/30 pressable"
               >
                 <AnimatePresence mode="wait" initial={false}>
                   {isPlaying ? (

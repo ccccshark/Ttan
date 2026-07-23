@@ -11,6 +11,8 @@ import {
   Play,
   Plus,
   Shuffle,
+  Settings,
+  Sparkles,
 } from "lucide-react";
 import { useLibraryStore } from "@/store/libraryStore";
 import { usePlayerStore } from "@/store/playerStore";
@@ -24,13 +26,14 @@ import CoverArt from "@/components/CoverArt";
 import type { Song } from "@/types";
 import { cn } from "@/lib/utils";
 
-// 椒盐风格首页（清晰 · 沉浸 · 记忆式）
-// 设计原则：
-// 1. 无干扰 hero——只放问候 + 关键数据
-// 2. 智能入口卡（2x2 网格）：全部 / 收藏 / 最常 / 最近
-// 3. 横向卡片轮播：最近播放 / 最常播放
-// 4. 列表式歌曲（默认折叠 8 首，可展开）
-// 5. 动态取色：当前播放歌曲封面主色应用到强调元素
+// PixelPlayer 风格首页
+// 设计特征：
+// 1. 渐变顶栏 + 圆角操作按钮
+// 2. 超大字体问候 / 标题
+// 3. 专辑封面拼贴（2x2 或 3x3）
+// 4. 圆角大卡片、紫色主强调
+// 5. 横向轮播：最近播放
+// 6. 底部渐变遮罩
 export default function Home() {
   const navigate = useNavigate();
   const songs = useLibraryStore((s) => s.songs);
@@ -48,7 +51,6 @@ export default function Home() {
   // 动态取色：从当前播放歌曲封面提取主色
   useEffect(() => {
     if (!settings.dynamicColor || !currentSong?.coverUrl) {
-      // 恢复默认强调色
       document.documentElement.style.setProperty("--accent-color", getAccentDefault(settings.accentPreset, settings.accentCustom));
       return;
     }
@@ -111,7 +113,6 @@ export default function Home() {
       .map((x) => x.s);
   }, [visibleSongsAll, playCounts]);
 
-  // 简单问候语
   const greeting = useMemo(() => {
     const h = new Date().getHours();
     if (h < 6) return "夜深了";
@@ -147,33 +148,47 @@ export default function Home() {
   );
   const totalMinutes = Math.round(totalDuration / 60);
 
+  // 拼贴封面：取前 4 首有封面的歌曲
+  const collageSongs = useMemo(() => {
+    return visibleSongsAll.filter((s) => s.coverUrl).slice(0, 4);
+  }, [visibleSongsAll]);
+
   return (
-    <div className="relative min-h-screen pb-36">
-      {/* 顶部问候 + 数据 */}
-      <header className="px-5 pb-2" style={{ paddingTop: `${statusBarHeight}px` }}>
-        <div className="flex items-start justify-between">
+    <div className="relative min-h-screen pb-36 bg-surface-light dark:bg-surface-dark">
+      {/* === 渐变顶栏（PixelPlayer 风格）=== */}
+      <header
+        className="relative z-10 px-5 pb-4"
+        style={{ paddingTop: `${statusBarHeight + 8}px` }}
+      >
+        <div className="flex items-center justify-between">
           <motion.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <div className="text-[11px] font-medium uppercase tracking-[0.28em] text-ink-subtle">
-              {greeting}
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 items-center rounded-full bg-pixel-purple/10 px-3.5 dark:bg-pixel-purple/20">
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-pixel-purple" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-pixel-purple">
+                  Ttan
+                </span>
+              </div>
             </div>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink dark:text-white">
-              Ttan 音乐
+            <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-ink dark:text-white">
+              {greeting}
             </h1>
           </motion.div>
+
           <motion.button
             type="button"
             onClick={() => navigate("/settings")}
             whileTap={{ scale: 0.9 }}
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.04] text-ink-muted transition-colors hover:bg-black/[0.08] dark:bg-white/[0.06] dark:text-white/70"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-container-high text-ink shadow-sm transition-colors hover:bg-surface-container-highest dark:bg-white/[0.08] dark:text-white"
             aria-label="设置"
           >
-            <Plus className="h-5 w-5 rotate-45" />
+            <Settings className="h-5 w-5" />
           </motion.button>
         </div>
 
@@ -185,13 +200,13 @@ export default function Home() {
             className="mt-3 flex items-center gap-3 text-[11px] text-ink-muted"
           >
             <span className="flex items-center gap-1">
-              <Music4 className="h-3 w-3 text-accent" />
+              <Music4 className="h-3 w-3 text-pixel-purple" />
               <span className="font-semibold tabular-nums text-ink dark:text-white">{sortedSongs.length}</span>
               <span>首</span>
             </span>
             <span className="h-2.5 w-px bg-black/10 dark:bg-white/10" />
             <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3 text-accent" />
+              <Clock className="h-3 w-3 text-pixel-purple" />
               <span className="font-semibold tabular-nums text-ink dark:text-white">
                 {totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ` : ""}
                 {totalMinutes % 60}m
@@ -201,7 +216,7 @@ export default function Home() {
               <>
                 <span className="h-2.5 w-px bg-black/10 dark:bg-white/10" />
                 <span className="flex items-center gap-1">
-                  <Heart className="h-3 w-3 text-rose-500" />
+                  <Heart className="h-3 w-3 text-pixel-pink" />
                   <span className="font-semibold tabular-nums text-ink dark:text-white">{favorites.length}</span>
                 </span>
               </>
@@ -210,46 +225,117 @@ export default function Home() {
         )}
       </header>
 
-      <div className="mx-auto max-w-[480px] space-y-6 px-4 pt-3">
-        {/* 智能入口：2x2 网格（椒盐卡片风格） */}
+      <div className="mx-auto max-w-[480px] space-y-6 px-4 pt-2">
+        {/* === 专辑封面拼贴（PixelPlayer 风格大卡片）=== */}
+        {hasSongs && collageSongs.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.5 }}
+            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-pixel-purple/20 via-pixel-pink/10 to-pixel-orange/10 p-4 dark:from-pixel-purple/30 dark:via-pixel-pink/15 dark:to-pixel-orange/10"
+          >
+            <div className="absolute inset-0 bg-surface-container/40 backdrop-blur-xl dark:bg-black/20" />
+            <div className="relative">
+              <div className="mb-3 flex items-end justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-ink dark:text-white">每日推荐</h2>
+                  <p className="mt-0.5 text-xs text-ink-muted">为你定制的音乐合辑</p>
+                </div>
+                <motion.button
+                  type="button"
+                  onClick={handleShuffleAll}
+                  whileTap={{ scale: 0.92 }}
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-pixel-purple text-white shadow-lg shadow-pixel-purple/30"
+                >
+                  <Shuffle className="h-5 w-5" />
+                </motion.button>
+              </div>
+
+              {/* 2x2 拼贴 */}
+              <div className="grid grid-cols-2 gap-2">
+                {collageSongs.map((song, i) => (
+                  <motion.button
+                    key={song.id}
+                    type="button"
+                    onClick={() => handlePlaySong(song, visibleSongsAll)}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 + i * 0.08 }}
+                    whileTap={{ scale: 0.96 }}
+                    className="group relative aspect-square overflow-hidden rounded-2xl"
+                  >
+                    <CoverArt
+                      src={song.coverUrl}
+                      alt={song.title}
+                      size={200}
+                      rounded="none"
+                      className="!h-full !w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                    <div className="absolute bottom-2 left-2 right-2 translate-y-2 opacity-0 transition-all group-hover:translate-y-0 group-hover:opacity-100">
+                      <p className="text-truncate text-xs font-semibold text-white">{song.title}</p>
+                      <p className="text-truncate text-[10px] text-white/70">{song.artist}</p>
+                    </div>
+                  </motion.button>
+                ))}
+                {collageSongs.length < 4 &&
+                  Array.from({ length: 4 - collageSongs.length }).map((_, i) => (
+                    <div
+                      key={`placeholder-${i}`}
+                      className="flex aspect-square items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5"
+                    >
+                      <Music4 className="h-8 w-8 text-ink-subtle dark:text-white/20" />
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </motion.section>
+        )}
+
+        {/* === 智能入口：2x2 网格 === */}
         {hasSongs && (
           <motion.section
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.4 }}
-            className="grid grid-cols-2 gap-2.5"
+            className="grid grid-cols-2 gap-3"
           >
             <SmartCard
               icon={<Music4 className="h-5 w-5" />}
               label="全部歌曲"
               count={sortedSongs.length}
               onClick={() => navigate("/playlists?tab=all")}
+              gradient="from-pixel-purple/20 to-pixel-purple/5"
+              iconBg="bg-pixel-purple/15 text-pixel-purple"
             />
             <SmartCard
               icon={<Heart className="h-5 w-5" />}
               label="我的收藏"
               count={favorites.length}
               onClick={() => navigate("/my")}
-              tint="rose"
+              gradient="from-pixel-pink/20 to-pixel-pink/5"
+              iconBg="bg-pixel-pink/15 text-pixel-pink"
             />
             <SmartCard
               icon={<Flame className="h-5 w-5" />}
               label="最常播放"
               count={mostPlayed.length}
               onClick={() => navigate("/playlists?tab=recent")}
-              tint="amber"
+              gradient="from-pixel-orange/20 to-pixel-orange/5"
+              iconBg="bg-pixel-orange/15 text-pixel-orange"
             />
             <SmartCard
               icon={<Clock className="h-5 w-5" />}
               label="最近播放"
               count={recentSongs.length}
               onClick={() => navigate("/playlists?tab=recent")}
-              tint="sky"
+              gradient="from-sky-500/20 to-sky-500/5"
+              iconBg="bg-sky-500/15 text-sky-500"
             />
           </motion.section>
         )}
 
-        {/* 添加 / 随机 */}
+        {/* === 添加 / 随机播放 === */}
         {!hasSongs ? (
           <ImportButton variant="full" />
         ) : (
@@ -266,7 +352,7 @@ export default function Home() {
               type="button"
               onClick={handleShuffleAll}
               whileTap={{ scale: 0.96 }}
-              className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-glow pressable"
+              className="flex items-center gap-2 rounded-full bg-pixel-purple px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-pixel-purple/25 pressable"
             >
               <Shuffle className="h-4 w-4" />
               随机播放
@@ -274,7 +360,7 @@ export default function Home() {
           </motion.div>
         )}
 
-        {/* 最近播放：横向卡片轮播 */}
+        {/* === 最近播放：横向卡片轮播 === */}
         {recentSongs.length > 0 && (
           <motion.section
             initial={{ opacity: 0, y: 10 }}
@@ -299,7 +385,7 @@ export default function Home() {
           </motion.section>
         )}
 
-        {/* 最常播放：横向卡片轮播 */}
+        {/* === 最常播放：横向卡片轮播 === */}
         {mostPlayed.length > 0 && (
           <motion.section
             initial={{ opacity: 0, y: 10 }}
@@ -325,7 +411,7 @@ export default function Home() {
           </motion.section>
         )}
 
-        {/* 歌曲列表 */}
+        {/* === 歌曲列表 === */}
         {hasSongs ? (
           <motion.section
             initial={{ opacity: 0, y: 10 }}
@@ -339,14 +425,14 @@ export default function Home() {
                   type="button"
                   onClick={handlePlayAll}
                   whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/18"
+                  className="flex items-center gap-1.5 rounded-full bg-pixel-purple/10 px-3 py-1.5 text-xs font-semibold text-pixel-purple transition-colors hover:bg-pixel-purple/18"
                 >
-                  <Play className="h-3 w-3 fill-accent" />
+                  <Play className="h-3 w-3 fill-pixel-purple" />
                   播放全部
                 </motion.button>
               }
             />
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {visibleSongs.map((song, i) => (
                 <SongItem
                   key={song.id}
@@ -362,7 +448,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setShowAll((v) => !v)}
                 whileTap={{ scale: 0.98 }}
-                className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl py-2.5 text-xs font-medium text-ink-muted transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
+                className="mt-3 flex w-full items-center justify-center gap-1 rounded-2xl bg-surface-container py-3 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-container-high dark:bg-white/[0.04] dark:hover:bg-white/[0.06]"
               >
                 <ChevronRight
                   className={cn("h-3.5 w-3.5 transition-transform", showAll && "rotate-90")}
@@ -385,11 +471,11 @@ export default function Home() {
   );
 }
 
-// 默认强调色（关闭动态取色时使用）
+// 默认强调色
 function getAccentDefault(preset: string, custom: string): string {
   if (preset === "custom") return custom;
   const map: Record<string, string> = {
-    salt: "#FF6B35",
+    salt: "#6C4FF5",
     "retro-red": "#E8332F",
     "spotify-green": "#1DB954",
     "ocean-blue": "#2E8BFF",
@@ -397,42 +483,41 @@ function getAccentDefault(preset: string, custom: string): string {
     "mint-cyan": "#00C2A8",
     "violet-purple": "#8B5CF6",
   };
-  return map[preset] ?? "#FF6B35";
+  return map[preset] ?? "#6C4FF5";
 }
 
-// ============ 智能入口卡（2x2 网格大卡） ============
+// ============ 智能入口卡（PixelPlayer 圆角大卡片） ============
 function SmartCard({
   icon,
   label,
   count,
   onClick,
-  tint = "accent",
+  gradient,
+  iconBg,
 }: {
   icon: React.ReactNode;
   label: string;
   count: number;
   onClick: () => void;
-  tint?: "accent" | "rose" | "amber" | "sky";
+  gradient?: string;
+  iconBg?: string;
 }) {
-  const tintMap = {
-    accent: "bg-accent/10 text-accent",
-    rose: "bg-rose-500/10 text-rose-500",
-    amber: "bg-amber-500/10 text-amber-500",
-    sky: "bg-sky-500/10 text-sky-500",
-  };
   return (
     <motion.button
       type="button"
       onClick={onClick}
       whileTap={{ scale: 0.97 }}
       whileHover={{ y: -1 }}
-      className="flex items-center gap-3 rounded-2xl border border-black/[0.04] bg-white px-4 py-3.5 text-left shadow-card transition-colors hover:bg-white/90 dark:border-white/[0.06] dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
+      className={cn(
+        "flex items-center gap-3 rounded-2xl border border-black/[0.03] bg-gradient-to-br p-4 text-left shadow-sm transition-colors dark:border-white/[0.05]",
+        gradient ?? "from-surface-container to-surface-container-high"
+      )}
     >
-      <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", tintMap[tint])}>
+      <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl", iconBg ?? "bg-pixel-purple/10 text-pixel-purple")}>
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-ink dark:text-white">{label}</div>
+        <div className="text-sm font-bold text-ink dark:text-white">{label}</div>
         <div className="mt-0.5 text-[11px] tabular-nums text-ink-muted">
           {count} 首
         </div>
@@ -454,15 +539,15 @@ function SectionHeader({
   onAction?: () => void;
 }) {
   return (
-    <div className="mb-2.5 flex items-center justify-between px-1">
-      <h2 className="text-base font-bold text-ink dark:text-white">{title}</h2>
+    <div className="mb-3 flex items-center justify-between px-1">
+      <h2 className="text-lg font-bold text-ink dark:text-white">{title}</h2>
       {action
         ? action
         : actionLabel && onAction && (
             <button
               type="button"
               onClick={onAction}
-              className="text-xs font-medium text-ink-muted transition-colors hover:text-accent"
+              className="text-xs font-semibold text-ink-muted transition-colors hover:text-pixel-purple"
             >
               {actionLabel}
             </button>
@@ -491,13 +576,13 @@ function RecentCard({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.04 * index, duration: 0.4 }}
       whileTap={{ scale: 0.96 }}
-      className="group relative w-[124px] shrink-0 text-left"
+      className="group relative w-[132px] shrink-0 text-left"
     >
       <div className="relative overflow-hidden rounded-2xl shadow-cover">
         <CoverArt
           src={song.coverUrl}
           alt={song.title}
-          size={124}
+          size={132}
           rounded="lg"
           className="!w-full !h-auto aspect-square"
         />
@@ -514,7 +599,7 @@ function RecentCard({
         )}
       </div>
       <div className="mt-2 px-0.5">
-        <div className="text-truncate text-xs font-semibold text-ink dark:text-white">{song.title}</div>
+        <div className="text-truncate text-xs font-bold text-ink dark:text-white">{song.title}</div>
         <div className="text-truncate text-[11px] text-ink-muted">{song.artist}</div>
       </div>
     </motion.button>

@@ -15,8 +15,8 @@ interface ThemeState {
   initTheme: () => void;
 }
 
-const DARK_BG = "#05060f";
-const LIGHT_BG = "#f5f5f7";
+const DARK_BG = "#1E1234";
+const LIGHT_BG = "#F7F2FF";
 
 async function syncStatusBar(theme: Theme) {
   if (!Capacitor.isNativePlatform()) return;
@@ -93,3 +93,5 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     set({ mode: storedMode, theme: initial });
   },
 }));
+
+export { applyTheme };

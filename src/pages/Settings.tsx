@@ -52,6 +52,7 @@ import {
   type BackupData,
 } from "@/utils/db";
 import { scanLocalMusic } from "@/utils/scanLocal";
+import { cn } from "@/lib/utils";
 
 const isCapacitor = (() => {
   const cap = (window as unknown as Record<string, unknown>).Capacitor;
@@ -59,7 +60,6 @@ const isCapacitor = (() => {
   const isNative = (cap as Record<string, unknown>).isNativePlatform;
   return typeof isNative === "function" ? !!isNative() : !!isNative;
 })();
-import { cn } from "@/lib/utils";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -81,7 +81,6 @@ export default function Settings() {
     window.setTimeout(() => setToast(null), 2400);
   };
 
-  // 主题模式变更
   const handleThemeMode = (m: "light" | "dark" | "system") => {
     setMode(m);
     update({ themeMode: m });
@@ -91,7 +90,6 @@ export default function Settings() {
     update({ accentPreset: preset });
   };
 
-  // EQ 预设应用
   const handleEqPreset = (preset: EqPreset) => {
     if (preset === "off") {
       update({ eqEnabled: false, eqPreset: "off" });
@@ -112,7 +110,6 @@ export default function Settings() {
   const handleEqBandChange = (i: number, v: number) => {
     const next = [...settings.eqBands];
     next[i] = v;
-    // 用户手动调整后切换为 custom
     update({ eqBands: next, eqPreset: "custom" });
   };
 
@@ -120,10 +117,8 @@ export default function Settings() {
     update({ eqEnabled: enabled });
   };
 
-  // 输出设备
   const outputDevices = useOutputDevices();
 
-  // 备份与恢复
   const handleExport = async () => {
     setBusy(true);
     try {
@@ -194,7 +189,6 @@ export default function Settings() {
     showToast("已清空音乐库");
   };
 
-  // 扫描文件夹添加歌曲
   const { addFiles } = useLibraryStore();
   const [scanProgress, setScanProgress] = useState<number | null>(null);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
@@ -272,10 +266,10 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-subtle pb-28 dark:bg-surface-dark">
-      {/* 顶部导航 */}
+    <div className="min-h-screen bg-surface-light pb-28 dark:bg-surface-dark">
+      {/* 顶部导航 - PixelPlayer 风格 */}
       <header
-        className="sticky top-0 z-10 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#05060f]/70"
+        className="sticky top-0 z-10 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl dark:border-white/[0.06] dark:bg-surface-dark/70"
         style={{ paddingTop: `${statusBarHeight}px` }}
       >
         <div className="mx-auto flex max-w-[480px] items-center gap-2 px-3 py-2">
@@ -287,7 +281,7 @@ export default function Settings() {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-bold text-ink">设置</h1>
+          <h1 className="text-lg font-bold text-ink dark:text-white">设置</h1>
         </div>
       </header>
 
@@ -338,7 +332,7 @@ export default function Settings() {
                       {active && (
                         <motion.span
                           layoutId="accent-active"
-                          className="absolute -inset-1 rounded-full ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#05060f]"
+                          className="absolute -inset-1 rounded-full ring-2 ring-offset-2 ring-offset-white dark:ring-offset-surface-dark"
                           style={{ boxShadow: `0 0 0 2px ${preset.color}` }}
                         />
                       )}
@@ -348,8 +342,8 @@ export default function Settings() {
               )}
               <label
                 className={cn(
-                  "relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-pink-500 via-yellow-500 to-cyan-500 text-xs font-bold text-white",
-                  settings.accentPreset === "custom" && "scale-110 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#05060f]"
+                  "relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-pixel-pink via-pixel-orange to-pixel-purple text-xs font-bold text-white",
+                  settings.accentPreset === "custom" && "scale-110 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-surface-dark"
                 )}
                 style={
                   settings.accentPreset === "custom"
@@ -429,7 +423,7 @@ export default function Settings() {
                   </>
                 ) : (
                   <label
-                    className="flex cursor-pointer items-center gap-2 rounded-full bg-accent/10 px-4 py-2 text-xs font-medium text-accent hover:bg-accent/20"
+                    className="flex cursor-pointer items-center gap-2 rounded-full bg-pixel-purple/10 px-4 py-2 text-xs font-medium text-pixel-purple hover:bg-pixel-purple/20"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Upload className="h-4 w-4" />
@@ -539,7 +533,7 @@ export default function Settings() {
                           className={cn(
                             "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                             active
-                              ? "bg-accent text-white shadow-sm"
+                              ? "bg-pixel-purple text-white shadow-sm"
                               : "bg-black/[0.05] text-ink-muted hover:bg-black/[0.08] dark:bg-white/[0.08] dark:hover:bg-white/[0.12]"
                           )}
                         >
@@ -807,7 +801,7 @@ export default function Settings() {
             onClick={scanProgress !== null ? undefined : handleScanFolder}
             chevron={scanProgress === null}
             trailing={scanProgress !== null ? (
-              <Loader2 className="h-4 w-4 text-accent animate-spin" />
+              <Loader2 className="h-4 w-4 text-pixel-purple animate-spin" />
             ) : (
               <Scan className="h-4 w-4 text-ink-subtle" />
             )}
@@ -932,7 +926,7 @@ export default function Settings() {
             subtitle="删除所有歌曲与缓存（不可撤销）"
             onClick={handleClearLibrary}
             chevron
-            trailing={<Trash2 className="h-4 w-4 text-rose-500" />}
+            trailing={<Trash2 className="h-4 w-4 text-pixel-pink" />}
           />
           <input
             ref={fileInputRef}
@@ -1003,7 +997,7 @@ export default function Settings() {
 
           <Row
             title="关于 Ttan"
-            subtitle="版本 1.0.0 · 本地音乐播放器"
+            subtitle="版本 2.2.0 · 本地音乐播放器"
             onClick={() => navigate("/about")}
             chevron
           />
